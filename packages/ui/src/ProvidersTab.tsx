@@ -679,9 +679,6 @@ export function ProvidersTab({
             className="ghost tiny catalog-chip"
             onClick={() => addProviderFromCatalog(cp)}
           >
-            {ICON_BY_CATALOG[cp.id] && (
-              <img src={ICON_BY_CATALOG[cp.id]} alt="" className="provider-icon" />
-            )}
             {cp.name}
           </button>
         ))}
