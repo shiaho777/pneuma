@@ -72,6 +72,20 @@ export const BUILTIN_TOOLS: ToolSpec[] = [
     group: "memory",
   },
   {
+    name: "set_inner",
+    description:
+      "记录此刻内心（情绪/挂念/还没说出口的打算），会延续到下一轮，用户不可见",
+    parameters: {
+      type: "object",
+      properties: {
+        emotion: { type: "string" },
+        concern: { type: "string" },
+        pendingIntent: { type: "string" },
+      },
+    },
+    group: "life",
+  },
+  {
     name: "post_moment",
     description: "发一条朋友圈动态",
     parameters: {

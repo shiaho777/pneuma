@@ -14,3 +14,6 @@ export * from "./presets";
 export * from "./update";
 export * from "./model-catalog";
 export * from "./provider-models";
+export * from "./lore";
+export * from "./memory-extractor";
+export * from "./inner-voice";

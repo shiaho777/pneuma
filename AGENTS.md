@@ -17,7 +17,10 @@
 
 - 工具结果 = 结构化 `RuntimeEvent`，**双写**上下文与 UI；禁止"界面演一套、上下文记一套"。
 - 提示词五层装配顺序固定：constitution → persona → relationship → memory → scene；每层硬预算，**persona 不裁剪**，memory 按分数淘汰。
-- 记忆检索三维：新近 × 重要性 × 相关性；pinned 不淘汰。
+- 记忆生命周期：`active → faded → archived`。强度 = 时间指数衰减(半衰期 36h) 与情绪加权（72h 内时间主导，之后情绪主导）+ 重要性 + 激活加成(≤0.24)；pinned 强度恒 1、永不淘汰。**写入必须走 `addOrReinforce`**（bigram 相似 ≥0.72 判重→强化，不新增）；归档条仅在查询相似 ≥0.35 时召回；检索命中即强化。
+- 记忆自动提取：每 20 条新消息增量提取 ≤6 条；置信度 ≥0.78 自动入库，中等相似(0.35–0.72)判冲突→ `memory.pending` 交用户审查，低置信同样待审。**禁止自动覆盖旧记忆**。
+- 世界书：`scanLore` 关键词(主/辅 and-or) + constant + **确定性概率**(哈希 seed=会话:条目:轮次，可复现) + 扫描深度 20 + 字符预算 3000 + 三注入位(persona/memory/scene)。
+- 心声：`set_inner` 工具写情绪/挂念/未决意图，**跨轮注入下一轮场景层**，用户不可见；属角色内部状态，不写入聊天记录。
 - 弱模型降级：表达组工具不可用时退化为约定文本格式（拆句符/状态行前缀），解析器兜底。
 - 群聊（M2）：发言调度器决定谁发言谁沉默；共享世界事件**订阅制**注入，禁止全量互塞上下文。
 - 人格包（M3）：`pneuma-persona` formatVersion 1，纯数据无执行代码；导入必须 `parsePersonaPack` 校验且 `agentFromPack` 重生成 ID；预设是默认最优解，导演模式才暴露复杂度。
@@ -40,3 +43,4 @@
 - Issue → 分支 → PR → CI；Issue/PR 英文（沿用上游社区约定，待用户确认后可改）。
 - 不主动 commit/push，除非用户要求。
 - 人格包纯数据无执行代码；沙箱脚本工具 P2 且显式授权。
+- **借鉴合规**：同类项目只借鉴机制思想，**禁止复制其代码**。茶茶机（luvfox50/matchaphone-machine）为 PolyForm Noncommercial，上游 ai-virtual-phone README 声明禁止同类挪用代码——两者均不可抄实现。本项目记忆生命周期/世界书/心声等机制为自行实现，参数与算法 independently chosen。引用外部图标资产须署名（见 provider-icons/SOURCE.txt）。

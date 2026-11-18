@@ -27,6 +27,8 @@ export interface AssembledPrompt {
 
 export type MemoryKind = "working" | "episodic" | "semantic" | "relationship";
 
+export type MemoryState = "active" | "faded" | "archived";
+
 export interface MemoryItem {
   id: string;
   agentId: string;
@@ -35,6 +37,44 @@ export interface MemoryItem {
   importance: number;
   createdAt: number;
   pinned?: boolean;
+  state?: MemoryState;
+  activations?: number;
+  lastActivatedAt?: number;
+  emotion?: number;
+  source?: "tool" | "auto" | "seed" | "user";
+  fadedAt?: number;
+}
+
+export interface MemoryCandidate {
+  id: string;
+  agentId: string;
+  text: string;
+  importance: number;
+  confidence: number;
+  reason: "low-confidence" | "conflict";
+  conflictWith?: string;
+  createdAt: number;
+}
+
+export interface LoreEntry {
+  id: string;
+  agentId?: string;
+  keys: string[];
+  secondaryKeys?: string[];
+  secondaryMode?: "and" | "or";
+  content: string;
+  constant?: boolean;
+  probability?: number;
+  priority?: number;
+  position?: "persona" | "memory" | "scene";
+  enabled?: boolean;
+}
+
+export interface InnerState {
+  emotion?: string;
+  concern?: string;
+  pendingIntent?: string;
+  updatedAt: number;
 }
 
 export type ToolGroup = "expression" | "life" | "memory" | "care" | "social";
@@ -70,6 +110,8 @@ export interface AgentDefinition {
     Record<PromptLayerId, { enabled?: boolean; budget?: number }>
   >;
   modelBinding?: string;
+  lore?: LoreEntry[];
+  innerVoice?: boolean;
 }
 
 export interface Session {
@@ -197,6 +239,7 @@ export interface PersonaPack {
   formatVersion: 1;
   agent: AgentDefinition;
   memorySeed: { text: string; importance: number }[];
+  lore?: LoreEntry[];
   firstMes?: string;
   exportedAt: number;
 }

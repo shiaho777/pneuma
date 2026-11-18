@@ -38,6 +38,7 @@ export interface SceneContext {
   now: string;
   status?: string;
   events?: string[];
+  inner?: string;
 }
 
 export interface AssembleInput {
@@ -47,6 +48,7 @@ export interface AssembleInput {
   relationship?: string;
   scene: SceneContext;
   spec?: { context: number; output: number };
+  lore?: Partial<Record<PromptLayerId, string>>;
 }
 
 function fitHistory(
@@ -66,19 +68,27 @@ function fitHistory(
 }
 
 export function assemblePrompt(input: AssembleInput): AssembledPrompt {
+  const loreAt = (id: PromptLayerId): string => {
+    const text = input.lore?.[id];
+    return text ? `\n\n设定集命中：\n${text}` : "";
+  };
   const raw: Record<PromptLayerId, string> = {
     constitution: CONSTITUTION,
     persona:
       input.agent.persona +
-      (input.agent.style ? "\n\n表达风格样例：\n" + input.agent.style : ""),
+      (input.agent.style ? "\n\n表达风格样例：\n" + input.agent.style : "") +
+      loreAt("persona"),
     relationship: input.relationship ?? "关系阶段：初识。共同经历尚少，慢慢来。",
-    memory: input.memories.map((m) => `- ${m.text}`).join("\n"),
+    memory:
+      input.memories.map((m) => `- ${m.text}`).join("\n") + loreAt("memory"),
     scene: [
       `当前时间：${input.scene.now}`,
       input.scene.status ? `你的状态：${input.scene.status}` : "",
+      input.scene.inner ?? "",
       input.scene.events?.length
         ? `最近世界事件：${input.scene.events.join("；")}`
         : "",
+      input.lore?.scene ? `设定集命中：\n${input.lore.scene}` : "",
     ]
       .filter(Boolean)
       .join("\n"),

@@ -35,5 +35,10 @@ export function parsePersonaPack(json: unknown): PersonaPack {
 }
 
 export function agentFromPack(pack: PersonaPack): AgentDefinition {
-  return { ...pack.agent, id: "pack-" + uid() };
+  const lore = pack.lore?.length ? pack.lore : pack.agent.lore;
+  return {
+    ...pack.agent,
+    id: "pack-" + uid(),
+    lore: lore?.map((entry) => ({ ...entry, id: "lore-" + uid() })),
+  };
 }

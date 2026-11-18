@@ -694,6 +694,14 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; box-shado
 
 .onboarding-actions { display: flex; justify-content: space-between; gap: 8px; }
 
+.mem.pending-mem {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 /* ---------- 广场 ---------- */
 
 .moment {

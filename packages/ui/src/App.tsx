@@ -3,7 +3,10 @@ import type {
   AgentDefinition,
   AIConfig,
   ChatMessage,
+  InnerState,
   LLMProviderConfig,
+  LoreEntry,
+  MemoryCandidate,
   MemoryItem,
   Moment,
   PromptLayer,
@@ -15,6 +18,8 @@ import {
   AgentRuntime,
   BUILTIN_TOOLS,
   EventBus,
+  InnerVoiceStore,
+  MemoryExtractor,
   MemoryStore,
   PlazaEngine,
   PRESETS,
@@ -89,6 +94,8 @@ export function App({ storage }: { storage?: PneumaStorage }) {
   const [config, setConfig] = useState<LLMProviderConfig>(DEFAULT_CONFIG);
   const [ai, setAI] = useState<AIConfig>({ providers: [], active: null });
   const [memories, setMemories] = useState<MemoryItem[]>([]);
+  const [candidates, setCandidates] = useState<MemoryCandidate[]>([]);
+  const [innerMap, setInnerMap] = useState<Record<string, InnerState>>({});
   const [moments, setMoments] = useState<Moment[]>([]);
   const [silence, setSilence] = useState("");
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -138,6 +145,8 @@ export function App({ storage }: { storage?: PneumaStorage }) {
   const agentsRef = useRef(agents);
   agentsRef.current = agents;
   const memoryRef = useRef(new MemoryStore());
+  const innerRef = useRef(new InnerVoiceStore());
+  const extractorRef = useRef<MemoryExtractor | null>(null);
   const busRef = useRef(new EventBus());
   const plazaRef = useRef<PlazaEngine | null>(null);
   const runtimeRef = useRef<AgentRuntime | null>(null);
@@ -164,6 +173,18 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           if (item) void storage?.saveMemory(item);
           break;
         }
+        case "memory.reinforced": {
+          const item = memoryRef.current.all().find((i) => i.id === e.itemId);
+          setMemories(memoryRef.current.all());
+          if (item) void storage?.saveMemory(item);
+          break;
+        }
+        case "memory.pending":
+          setCandidates((list) => [...list, e.candidate]);
+          break;
+        case "inner.updated":
+          setInnerMap((m) => ({ ...m, [e.agentId]: e.inner }));
+          break;
         case "prompt.assembled":
           setLayers(e.layers);
           setTotalTokens(e.totalTokens);
@@ -193,11 +214,17 @@ export function App({ storage }: { storage?: PneumaStorage }) {
       storage,
       config: DEFAULT_CONFIG,
     });
+    extractorRef.current = new MemoryExtractor({
+      memory: memoryRef.current,
+      config: DEFAULT_CONFIG,
+    });
     runtimeRef.current = new AgentRuntime({
       memory: memoryRef.current,
       emit,
       bus: busRef.current,
       plaza: plazaRef.current,
+      extractor: extractorRef.current,
+      inner: innerRef.current,
     });
   }
 
@@ -338,7 +365,11 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           }
         : undefined;
     }
-  }, [effectiveConfig.spec]);
+    if (extractorRef.current) {
+      extractorRef.current.deps.config = effectiveConfig;
+      extractorRef.current.deps.provider = undefined;
+    }
+  }, [effectiveConfig]);
 
   const nameOf = (id?: string) =>
     id === "user"
@@ -581,6 +612,43 @@ export function App({ storage }: { storage?: PneumaStorage }) {
   };
 
   const agentMemories = memories.filter((m) => m.agentId === agent.id);
+  const agentCandidates = candidates.filter((c) => c.agentId === agent.id);
+  const agentLore = agent.lore ?? [];
+
+  const acceptCandidate = (c: MemoryCandidate) => {
+    const { item } = memoryRef.current.addOrReinforce(
+      "semantic",
+      c.text,
+      c.importance,
+      c.agentId,
+      { source: "user" },
+    );
+    void storage?.saveMemory(item);
+    setMemories(memoryRef.current.all());
+    setCandidates((list) => list.filter((x) => x.id !== c.id));
+    toast("已采纳该记忆");
+  };
+
+  const patchLore = (id: string, patch: Partial<LoreEntry>) => {
+    updateAgent({
+      lore: agentLore.map((x) => (x.id === id ? { ...x, ...patch } : x)),
+    });
+  };
+
+  const addLore = () => {
+    updateAgent({
+      lore: [
+        ...agentLore,
+        {
+          id: "lore-" + Date.now(),
+          keys: [],
+          content: "",
+          position: "scene",
+          probability: 100,
+        },
+      ],
+    });
+  };
 
   return (
     <div className="shell">
@@ -846,14 +914,152 @@ export function App({ storage }: { storage?: PneumaStorage }) {
             <IconDownload size={14} /> 导出人格包
           </button>
 
+          {agentCandidates.length > 0 && (
+            <>
+              <h3>待审记忆（{agentCandidates.length}）</h3>
+              {agentCandidates.map((c) => (
+                <div key={c.id} className="mem pending-mem">
+                  <div>{c.text}</div>
+                  <div className="meta">
+                    {c.reason === "conflict" ? "与旧记忆可能冲突" : "置信度不足"}
+                    {" · "}
+                    {Math.round(c.confidence * 100)}%
+                    {c.conflictWith
+                      ? ` · 旧：${memories.find((m) => m.id === c.conflictWith)?.text ?? "已移除"}`
+                      : ""}
+                  </div>
+                  <div className="row">
+                    <button
+                      className="send tiny"
+                      onClick={() => acceptCandidate(c)}
+                    >
+                      采纳
+                    </button>
+                    <button
+                      className="ghost tiny"
+                      onClick={() =>
+                        setCandidates((list) => list.filter((x) => x.id !== c.id))
+                      }
+                    >
+                      忽略
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </>
+          )}
+
           <h3>记忆库</h3>
           {agentMemories.map((m) => (
             <div key={m.id} className="mem">
-              {m.pinned ? "📌 " : ""}
-              {m.text}
+              <div>
+                {m.pinned ? "📌 " : ""}
+                {m.text}
+              </div>
+              <div className="meta">
+                {m.state ?? "active"}
+                {m.source === "auto" ? " · 自动提取" : ""}
+                {(m.activations ?? 0) > 0 ? ` · 强化 ${m.activations} 次` : ""}
+              </div>
             </div>
           ))}
           {!agentMemories.length && <div className="meta">（还没有记忆）</div>}
+
+          <h3>心声延续</h3>
+          {innerMap[agent.id] ? (
+            <div className="mem">
+              {innerMap[agent.id].emotion
+                ? `情绪：${innerMap[agent.id].emotion}`
+                : ""}
+              {innerMap[agent.id].concern
+                ? ` · 挂念：${innerMap[agent.id].concern}`
+                : ""}
+              {innerMap[agent.id].pendingIntent
+                ? ` · 未说出口：${innerMap[agent.id].pendingIntent}`
+                : ""}
+            </div>
+          ) : (
+            <div className="meta">（角色尚未记录内心）</div>
+          )}
+
+          <h3>设定集 / 世界书（{agentLore.length}）</h3>
+          {agentLore.map((entry) => (
+            <div key={entry.id} className="mem">
+              <div className="row">
+                <input
+                  className="provider-name"
+                  value={entry.keys.join(",")}
+                  placeholder="关键词，逗号分隔"
+                  onChange={(e) =>
+                    patchLore(entry.id, {
+                      keys: e.target.value
+                        .split(",")
+                        .map((k) => k.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={entry.constant ?? false}
+                    onChange={(e) =>
+                      patchLore(entry.id, { constant: e.target.checked })
+                    }
+                  />
+                  常驻
+                </label>
+                <button
+                  className="ghost tiny"
+                  onClick={() =>
+                    updateAgent({
+                      lore: agentLore.filter((x) => x.id !== entry.id),
+                    })
+                  }
+                >
+                  删除
+                </button>
+              </div>
+              <textarea
+                className="edit"
+                rows={2}
+                value={entry.content}
+                onChange={(e) => patchLore(entry.id, { content: e.target.value })}
+              />
+              <div className="row">
+                <span className="meta">概率</span>
+                <input
+                  className="budget"
+                  type="number"
+                  value={entry.probability ?? 100}
+                  onChange={(e) =>
+                    patchLore(entry.id, {
+                      probability: Math.min(
+                        100,
+                        Math.max(0, Number(e.target.value) || 0),
+                      ),
+                    })
+                  }
+                />
+                <select
+                  className="budget"
+                  value={entry.position ?? "scene"}
+                  onChange={(e) =>
+                    patchLore(entry.id, {
+                      position: e.target.value as LoreEntry["position"],
+                    })
+                  }
+                >
+                  <option value="persona">人格层</option>
+                  <option value="memory">记忆层</option>
+                  <option value="scene">场景层</option>
+                </select>
+              </div>
+            </div>
+          ))}
+          <button className="ghost tiny" onClick={addLore}>
+            <IconPlus size={13} /> 新增设定条目
+          </button>
         </aside>
       )}
 

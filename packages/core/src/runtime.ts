@@ -8,8 +8,11 @@ import type {
   ToolCall,
 } from "@pneuma/protocol";
 import type { EventBus } from "./event-bus";
+import type { InnerVoiceStore } from "./inner-voice";
 import { createProvider, type LLMProvider } from "./llm-adapter";
+import { loreFor, scanLore } from "./lore";
 import type { MemoryStore } from "./memory";
+import type { MemoryExtractor } from "./memory-extractor";
 import type { PlazaEngine } from "./plaza-engine";
 import { assemblePrompt } from "./prompt-assembler";
 import { scheduleSpeakers } from "./scheduler";
@@ -23,6 +26,8 @@ export interface RuntimeDeps {
   bus?: EventBus;
   plaza?: PlazaEngine;
   spec?: { context: number; output: number };
+  extractor?: MemoryExtractor;
+  inner?: InnerVoiceStore;
 }
 
 export class AgentRuntime {
@@ -155,19 +160,30 @@ export class AgentRuntime {
     controller: AbortController,
     reason: string,
   ): Promise<void> {
-    const retrieved = this.deps.memory
-      .retrieve(history[history.length - 1]?.content ?? "", 24)
-      .filter((m) => m.agentId === agent.id);
+    const query = history[history.length - 1]?.content ?? "";
+    const retrieved = this.deps.memory.retrieve(query, 24, Date.now(), agent.id);
     const worldEvents = this.deps.bus
       ?.relevantFor(agent.id)
       .map((e) => `${e.actorId === "user" ? "用户" : e.actorId}：${e.text}`);
+    const loreHits = agent.lore?.length
+      ? scanLore(agent.lore, history, {
+          sessionId: session.id,
+          turn: history.length,
+        })
+      : [];
     const prompt = assemblePrompt({
       agent,
       memories: retrieved,
       history,
+      lore: {
+        persona: loreFor(loreHits, "persona"),
+        memory: loreFor(loreHits, "memory"),
+        scene: loreFor(loreHits, "scene"),
+      },
       scene: {
         now: new Date().toLocaleString("zh-CN"),
         status: this.status.get(agent.id),
+        inner: this.deps.inner?.render(agent.id),
         events: [
           ...(worldEvents ?? []),
           agents.length > 1
@@ -235,6 +251,45 @@ export class AgentRuntime {
         text: part,
       });
     }
+
+    await this.extractMemories(session, agent, history);
+  }
+
+  private async extractMemories(
+    session: Session,
+    agent: AgentDefinition,
+    history: LLMMessage[],
+  ): Promise<void> {
+    const extractor = this.deps.extractor;
+    if (!extractor) return;
+    const key = `${session.id}:${agent.id}`;
+    if (!extractor.shouldRun(key, history.length)) return;
+    const result = await extractor.run(key, agent.id, history);
+    for (const item of result.accepted) {
+      this.deps.emit({
+        type: "memory.added",
+        sessionId: session.id,
+        agentId: agent.id,
+        itemId: item.id,
+        text: item.text,
+      });
+    }
+    for (const item of result.reinforced) {
+      this.deps.emit({
+        type: "memory.reinforced",
+        sessionId: session.id,
+        agentId: agent.id,
+        itemId: item.id,
+        activations: item.activations ?? 1,
+      });
+    }
+    for (const candidate of result.pending) {
+      this.deps.emit({
+        type: "memory.pending",
+        sessionId: session.id,
+        candidate,
+      });
+    }
   }
 
   private async executeTool(
@@ -258,20 +313,52 @@ export class AgentRuntime {
         break;
       }
       case "remember": {
-        const item = this.deps.memory.add(
+        const { item, created } = this.deps.memory.addOrReinforce(
           "semantic",
           String(call.args.text ?? ""),
           Number(call.args.importance ?? 0.6),
-          false,
           agent.id,
+          { source: "tool" },
         );
-        this.deps.emit({
-          type: "memory.added",
-          sessionId: session.id,
-          agentId: agent.id,
-          itemId: item.id,
-          text: item.text,
-        });
+        this.deps.emit(
+          created
+            ? {
+                type: "memory.added",
+                sessionId: session.id,
+                agentId: agent.id,
+                itemId: item.id,
+                text: item.text,
+              }
+            : {
+                type: "memory.reinforced",
+                sessionId: session.id,
+                agentId: agent.id,
+                itemId: item.id,
+                activations: item.activations ?? 1,
+              },
+        );
+        output = created ? "ok" : "reinforced";
+        break;
+      }
+      case "set_inner": {
+        if (this.deps.inner) {
+          const inner = this.deps.inner.set(agent.id, {
+            emotion: call.args.emotion ? String(call.args.emotion) : undefined,
+            concern: call.args.concern ? String(call.args.concern) : undefined,
+            pendingIntent: call.args.pendingIntent
+              ? String(call.args.pendingIntent)
+              : undefined,
+          });
+          this.deps.emit({
+            type: "inner.updated",
+            sessionId: session.id,
+            agentId: agent.id,
+            inner,
+          });
+        } else {
+          ok = false;
+          output = "inner store not available";
+        }
         break;
       }
       case "recall": {

@@ -1,5 +1,7 @@
 import type {
   ChatMessage,
+  InnerState,
+  MemoryCandidate,
   Moment,
   MomentComment,
   PromptLayer,
@@ -33,4 +35,18 @@ export type RuntimeEvent =
       type: "moment.commented";
       momentId: string;
       comment: MomentComment;
+    }
+  | {
+      type: "memory.reinforced";
+      sessionId: string;
+      agentId: string;
+      itemId: string;
+      activations: number;
+    }
+  | { type: "memory.pending"; sessionId: string; candidate: MemoryCandidate }
+  | {
+      type: "inner.updated";
+      sessionId: string;
+      agentId: string;
+      inner: InnerState;
     };
