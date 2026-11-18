@@ -51,6 +51,11 @@ const out = [
     (e) =>
       `## ${e.name} ${e.version} — ${e.license}\n\n${e.text || "（许可证文本见上游仓库）"}\n`,
   ),
+  "",
+  "## 资产署名：供应商品牌图标",
+  "",
+  "来源：zai-org/ZCode（Apache-2.0），packages/ui/src/assets/provider-icons。",
+  "本项目仅引用其开源品牌图标资产，未引用其代码。详见 packages/ui/src/assets/provider-icons/SOURCE.txt。",
 ].join("\n");
 
 const target = join(root, "apps", "web", "src", "assets");

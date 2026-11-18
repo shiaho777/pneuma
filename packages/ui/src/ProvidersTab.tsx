@@ -8,16 +8,62 @@ import type {
 } from "@pneuma/protocol";
 import {
   findModelMatches,
+  findProvider,
   formatTokens,
   listProviders,
   type CatalogMatch,
 } from "@pneuma/core";
+
+import iconOpenai from "./assets/provider-icons/model-provider-openai.png";
+import iconAnthropic from "./assets/provider-icons/model-provider-anthropic.png";
+import iconDeepseek from "./assets/provider-icons/model-provider-deepseek.png";
+import iconSiliconflow from "./assets/provider-icons/model-provider-siliconflow.png";
+import iconBigmodel from "./assets/provider-icons/logo-bigmodel.svg";
+import iconMoonshot from "./assets/provider-icons/logo-moonshoot.svg";
+import iconMinimax from "./assets/provider-icons/model-provider-minimax.png";
+import iconMimo from "./assets/provider-icons/model-provider-xiaomi-mimo.png";
+import iconAlibaba from "./assets/provider-icons/model-provider-alibaba-cloud.png";
+import iconKimi from "./assets/provider-icons/model-provider-moonshot-kimi.png";
+import iconVolc from "./assets/provider-icons/model-provider-volcengine.png";
 
 const PROTOCOL_LABEL: Record<LLMProtocol, string> = {
   "openai-compatible": "Chat Completions (/chat/completions)",
   anthropic: "Anthropic Messages (/v1/messages)",
   gemini: "Gemini (streamGenerateContent)",
 };
+
+interface PresetProvider {
+  catalogId?: string;
+  name: string;
+  protocol: LLMProtocol;
+  baseUrl: string;
+  icon?: string;
+  initial: string;
+}
+
+const PRESET_PROVIDERS: PresetProvider[] = [
+  { catalogId: "openai", name: "OpenAI", protocol: "openai-compatible", baseUrl: "https://api.openai.com/v1", icon: iconOpenai, initial: "O" },
+  { catalogId: "anthropic", name: "Anthropic", protocol: "anthropic", baseUrl: "https://api.anthropic.com", icon: iconAnthropic, initial: "A" },
+  { catalogId: "google", name: "Google", protocol: "gemini", baseUrl: "https://generativelanguage.googleapis.com", initial: "G" },
+  { catalogId: "azure", name: "Azure", protocol: "openai-compatible", baseUrl: "", initial: "Az" },
+  { catalogId: "amazon-bedrock", name: "Amazon Bedrock", protocol: "openai-compatible", baseUrl: "", initial: "B" },
+  { catalogId: "deepseek", name: "DeepSeek", protocol: "openai-compatible", baseUrl: "https://api.deepseek.com", icon: iconDeepseek, initial: "D" },
+  { catalogId: "siliconflow", name: "硅基流动", protocol: "openai-compatible", baseUrl: "https://api.siliconflow.cn/v1", icon: iconSiliconflow, initial: "硅" },
+  { catalogId: "zhipu", name: "智谱", protocol: "openai-compatible", baseUrl: "https://open.bigmodel.cn/api/paas/v4", icon: iconBigmodel, initial: "智" },
+  { catalogId: "moonshot", name: "Moonshot", protocol: "openai-compatible", baseUrl: "https://api.moonshot.cn/v1", icon: iconMoonshot, initial: "M" },
+  { catalogId: "minimax", name: "MiniMax", protocol: "openai-compatible", baseUrl: "https://api.minimaxi.com/v1", icon: iconMinimax, initial: "M" },
+  { catalogId: "xiaomi", name: "小米 MiMo", protocol: "openai-compatible", baseUrl: "", icon: iconMimo, initial: "Mi" },
+  { catalogId: "alibaba", name: "阿里云百炼", protocol: "openai-compatible", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", icon: iconAlibaba, initial: "百" },
+  { catalogId: "kimi", name: "Kimi", protocol: "openai-compatible", baseUrl: "https://api.moonshot.cn/v1", icon: iconKimi, initial: "K" },
+  { catalogId: "volcengine", name: "火山引擎", protocol: "openai-compatible", baseUrl: "https://ark.cn-beijing.volces.com/api/v3", icon: iconVolc, initial: "火" },
+];
+
+const ICON_BY_CATALOG: Record<string, string> = Object.fromEntries(
+  PRESET_PROVIDERS.filter((p) => p.catalogId && p.icon).map((p) => [
+    p.catalogId as string,
+    p.icon as string,
+  ]),
+);
 
 export function ProvidersTab({
   ai,
@@ -83,6 +129,29 @@ export function ProvidersTab({
       apiKey: "",
       models: [],
       catalogProviderId: cp.id,
+    };
+    onChange({ ...ai, providers: [...ai.providers, provider] });
+    setDetailId(provider.id);
+  };
+
+  const addPresetProvider = (preset: PresetProvider) => {
+    const existing = ai.providers.find(
+      (p) => p.catalogProviderId === preset.catalogId || p.name === preset.name,
+    );
+    if (existing) {
+      setDetailId(existing.id);
+      return;
+    }
+    const cp = preset.catalogId ? findProvider(preset.catalogId) : undefined;
+    const provider: ProviderConfig = {
+      id: "prov-" + Date.now(),
+      name: preset.name,
+      enabled: true,
+      baseUrl: preset.baseUrl || cp?.baseUrl || "",
+      protocol: cp?.protocol ?? preset.protocol,
+      apiKey: "",
+      models: [],
+      catalogProviderId: preset.catalogId,
     };
     onChange({ ...ai, providers: [...ai.providers, provider] });
     setDetailId(provider.id);
@@ -387,9 +456,32 @@ export function ProvidersTab({
           ＋ 创建自定义供应商
         </button>
       </div>
+      <div className="preset-grid">
+        {PRESET_PROVIDERS.map((pp) => (
+          <button
+            key={pp.name}
+            className="preset-chip"
+            onClick={() => addPresetProvider(pp)}
+          >
+            {pp.icon ? (
+              <img src={pp.icon} alt="" className="provider-icon" />
+            ) : (
+              <span className="provider-icon fallback">{pp.initial}</span>
+            )}
+            <span>{pp.name}</span>
+          </button>
+        ))}
+      </div>
       {ai.providers.map((p) => (
         <button key={p.id} className="preset" onClick={() => setDetailId(p.id)}>
           <span className="name">
+            {p.catalogProviderId && ICON_BY_CATALOG[p.catalogProviderId] && (
+              <img
+                src={ICON_BY_CATALOG[p.catalogProviderId]}
+                alt=""
+                className="provider-icon"
+              />
+            )}
             {p.name} {p.enabled ? "" : "（停用）"}
           </span>
           <span className="statusline">
@@ -410,9 +502,12 @@ export function ProvidersTab({
         {catalogGrid.map((cp) => (
           <button
             key={cp.id}
-            className="ghost tiny"
+            className="ghost tiny catalog-chip"
             onClick={() => addProviderFromCatalog(cp)}
           >
+            {ICON_BY_CATALOG[cp.id] && (
+              <img src={ICON_BY_CATALOG[cp.id]} alt="" className="provider-icon" />
+            )}
             {cp.name}
           </button>
         ))}

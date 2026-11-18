@@ -1,0 +1,1 @@
+Provider brand icons sourced from zai-org/ZCode (Apache-2.0), packages/ui/src/assets/provider-icons.

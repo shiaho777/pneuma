@@ -616,6 +616,60 @@ button:disabled {
   gap: 6px;
 }
 
+.preset-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.preset-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.preset-chip:hover {
+  border-color: var(--accent);
+}
+
+.provider-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 4px;
+  vertical-align: -4px;
+  margin-right: 6px;
+}
+
+.provider-icon.fallback {
+  display: inline-grid;
+  place-items: center;
+  background: var(--bubble-user);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.catalog-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+:root[data-theme="dark"] .preset-chip {
+  background: var(--bubble-ai);
+  color: var(--ink);
+}
+
 :root[data-theme="dark"] .provider-name,
 :root[data-theme="dark"] .spec-card,
 :root[data-theme="dark"] .model-row {
