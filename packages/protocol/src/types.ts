@@ -92,12 +92,73 @@ export interface ChatMessage {
   meta?: Record<string, unknown>;
 }
 
+export type LLMProtocol = "openai-compatible" | "anthropic" | "gemini";
+
+export interface ModelSpec {
+  id: string;
+  name: string;
+  context: number;
+  input: number;
+  output: number;
+  toolCall: boolean;
+  reasoning: boolean;
+  attachment: boolean;
+  temperature: boolean;
+  modalities: { input: string[]; output: string[] };
+  cost: { input?: number; output?: number; cache_read?: number } | null;
+  status: string;
+}
+
+export interface CatalogProvider {
+  id: string;
+  name: string;
+  protocol: LLMProtocol;
+  baseUrl: string;
+  env: string[];
+  doc: string;
+  models: ModelSpec[];
+}
+
+export interface ModelCatalog {
+  source: string;
+  generatedAt: string;
+  providers: CatalogProvider[];
+}
+
+export interface ProviderModel {
+  id: string;
+  enabled: boolean;
+  spec?: ModelSpec;
+}
+
+export interface ProviderConfig {
+  id: string;
+  name: string;
+  enabled: boolean;
+  baseUrl: string;
+  protocol: LLMProtocol;
+  apiKey: string;
+  models: ProviderModel[];
+  catalogProviderId?: string;
+}
+
+export interface AIConfig {
+  providers: ProviderConfig[];
+  active: { providerId: string; modelId: string } | null;
+}
+
 export interface LLMProviderConfig {
   id: string;
-  protocol: "openai-compatible" | "mock";
+  protocol: LLMProtocol | "mock";
   baseUrl?: string;
   apiKey?: string;
   model?: string;
+  spec?: ModelSpec;
+}
+
+export interface LLMRequestOptions {
+  maxOutputTokens?: number;
+  temperature?: number;
 }
 
 export interface WorldEvent {

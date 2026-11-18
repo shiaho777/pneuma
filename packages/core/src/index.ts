@@ -12,3 +12,4 @@ export * from "./plaza-engine";
 export * from "./persona-pack";
 export * from "./presets";
 export * from "./update";
+export * from "./model-catalog";

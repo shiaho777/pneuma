@@ -22,6 +22,7 @@ export interface RuntimeDeps {
   provider?: LLMProvider;
   bus?: EventBus;
   plaza?: PlazaEngine;
+  spec?: { context: number; output: number };
 }
 
 export class AgentRuntime {
@@ -29,7 +30,7 @@ export class AgentRuntime {
   private status = new Map<string, string>();
   private controllers = new Map<string, AbortController>();
 
-  constructor(private deps: RuntimeDeps) {}
+  constructor(public deps: RuntimeDeps) {}
 
   abort(sessionId: string): void {
     this.controllers.get(sessionId)?.abort();
@@ -177,6 +178,7 @@ export class AgentRuntime {
             : "",
         ].filter(Boolean),
       },
+      spec: this.deps.spec,
     });
     this.deps.emit({
       type: "prompt.assembled",
@@ -191,6 +193,7 @@ export class AgentRuntime {
       prompt.messages,
       tools,
       controller.signal,
+      { maxOutputTokens: this.deps.spec?.output || undefined },
     )) {
       if (delta.type === "text") {
         buffer += delta.text;

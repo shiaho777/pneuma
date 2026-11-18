@@ -1,11 +1,12 @@
 import { useState } from "react";
-import type { LLMProviderConfig } from "@pneuma/protocol";
+import type { AIConfig, LLMProviderConfig } from "@pneuma/protocol";
 import {
   checkForUpdate,
   type PneumaBackup,
   type PneumaStorage,
   type UpdateState,
 } from "@pneuma/core";
+import { ProvidersTab } from "./ProvidersTab";
 import licenseText from "../../../LICENSE?raw";
 import thirdParty from "../../../apps/web/src/assets/THIRD-PARTY-LICENSES.txt?raw";
 import readmeUrl from "../../../README.md";
@@ -16,6 +17,8 @@ export interface SettingsCenterProps {
   storage?: PneumaStorage;
   config: LLMProviderConfig;
   onConfig: (next: LLMProviderConfig) => void;
+  ai: AIConfig;
+  onAI: (next: AIConfig) => void;
   theme: Theme;
   onTheme: (t: Theme) => void;
   reduceMotion: boolean;
@@ -115,60 +118,7 @@ export function SettingsCenter(props: SettingsCenterProps) {
         </div>
 
         {tab === "模型接口" && (
-          <section className="settings-section">
-            <p className="meta">
-              密钥只保存在本机浏览器存储，请求直连你填写的接口，不经过任何项目服务器。
-            </p>
-            <label className="field">
-              协议
-              <select
-                value={props.config.protocol}
-                onChange={(e) =>
-                  props.onConfig({
-                    ...props.config,
-                    protocol: e.target.value as LLMProviderConfig["protocol"],
-                  })
-                }
-              >
-                <option value="mock">本地演示（无需接口）</option>
-                <option value="openai-compatible">OpenAI 兼容</option>
-              </select>
-            </label>
-            {props.config.protocol === "openai-compatible" && (
-              <>
-                <label className="field">
-                  Base URL
-                  <input
-                    value={props.config.baseUrl ?? ""}
-                    placeholder="https://api.example.com/v1"
-                    onChange={(e) =>
-                      props.onConfig({ ...props.config, baseUrl: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="field">
-                  API Key
-                  <input
-                    type="password"
-                    value={props.config.apiKey ?? ""}
-                    onChange={(e) =>
-                      props.onConfig({ ...props.config, apiKey: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="field">
-                  模型
-                  <input
-                    value={props.config.model ?? ""}
-                    placeholder="model-name"
-                    onChange={(e) =>
-                      props.onConfig({ ...props.config, model: e.target.value })
-                    }
-                  />
-                </label>
-              </>
-            )}
-          </section>
+          <ProvidersTab ai={props.ai} onChange={props.onAI} notify={props.notify} />
         )}
 
         {tab === "关于" && (

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   AgentDefinition,
+  AIConfig,
   ChatMessage,
   LLMProviderConfig,
   MemoryItem,
@@ -23,6 +24,7 @@ import {
   instantiatePreset,
   parsePersonaPack,
   checkForUpdate,
+  setCatalog,
   type PneumaStorage,
   type UpdateState,
 } from "@pneuma/core";
@@ -70,6 +72,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
   const [groupModal, setGroupModal] = useState(false);
   const [groupPick, setGroupPick] = useState<string[]>([]);
   const [config, setConfig] = useState<LLMProviderConfig>(DEFAULT_CONFIG);
+  const [ai, setAI] = useState<AIConfig>({ providers: [], active: null });
   const [memories, setMemories] = useState<MemoryItem[]>([]);
   const [moments, setMoments] = useState<Moment[]>([]);
   const [silence, setSilence] = useState("");
@@ -99,6 +102,24 @@ export function App({ storage }: { storage?: PneumaStorage }) {
     .filter((a): a is AgentDefinition => Boolean(a));
   const agent = participants[0] ?? agents[0];
   const isGroup = participants.length > 1;
+
+  const activeProvider = ai.active
+    ? ai.providers.find((p) => p.id === ai.active!.providerId)
+    : undefined;
+  const activeModel = activeProvider?.models.find(
+    (m) => m.id === ai.active?.modelId && m.enabled,
+  );
+  const effectiveConfig: LLMProviderConfig =
+    activeProvider && activeModel
+      ? {
+          id: activeProvider.id,
+          protocol: activeProvider.protocol,
+          baseUrl: activeProvider.baseUrl,
+          apiKey: activeProvider.apiKey,
+          model: activeModel.id,
+          spec: activeModel.spec,
+        }
+      : DEFAULT_CONFIG;
 
   const agentsRef = useRef(agents);
   agentsRef.current = agents;
@@ -193,6 +214,33 @@ export function App({ storage }: { storage?: PneumaStorage }) {
       memoryRef.current.restore(savedMemories);
       setMemories(savedMemories);
       if (savedConfig) setConfig(savedConfig);
+      const savedAI = (await storage.getKV("aiConfig")) as AIConfig | undefined;
+      if (savedAI) {
+        setAI(savedAI);
+      } else if (savedConfig && savedConfig.protocol !== "mock") {
+        setAI({
+          providers: [
+            {
+              id: "legacy",
+              name: "自定义供应商",
+              enabled: true,
+              baseUrl: savedConfig.baseUrl ?? "",
+              protocol: savedConfig.protocol,
+              apiKey: savedConfig.apiKey ?? "",
+              models: savedConfig.model
+                ? [{ id: savedConfig.model, enabled: true }]
+                : [],
+            },
+          ],
+          active: savedConfig.model
+            ? { providerId: "legacy", modelId: savedConfig.model }
+            : null,
+        });
+      }
+      const catalog = (await import(
+        "../../../apps/web/src/assets/model-catalog.json"
+      )) as { default?: unknown };
+      setCatalog((catalog.default ?? catalog) as never);
       plazaRef.current!.restore(savedMoments);
       syncMoments();
 
@@ -267,6 +315,17 @@ export function App({ storage }: { storage?: PneumaStorage }) {
     document.documentElement.dataset.motion = reduceMotion ? "off" : "on";
   }, [theme, reduceMotion]);
 
+  useEffect(() => {
+    if (runtimeRef.current) {
+      runtimeRef.current.deps.spec = effectiveConfig.spec
+        ? {
+            context: effectiveConfig.spec.context,
+            output: effectiveConfig.spec.output,
+          }
+        : undefined;
+    }
+  }, [effectiveConfig.spec]);
+
   const nameOf = (id?: string) =>
     id === "user"
       ? "你"
@@ -280,9 +339,14 @@ export function App({ storage }: { storage?: PneumaStorage }) {
     setSilence("");
     setRunning(true);
     if (isGroup) {
-      await runtimeRef.current!.sendGroup(session, participants, text, config);
+      await runtimeRef.current!.sendGroup(
+        session,
+        participants,
+        text,
+        effectiveConfig,
+      );
     } else {
-      await runtimeRef.current!.send(session, agent, text, config);
+      await runtimeRef.current!.send(session, agent, text, effectiveConfig);
     }
     setRunning(false);
   };
@@ -831,6 +895,11 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           storage={storage}
           config={config}
           onConfig={saveConfig}
+          ai={ai}
+          onAI={(next) => {
+            setAI(next);
+            void storage?.setKV("aiConfig", next);
+          }}
           theme={theme}
           onTheme={(t) => {
             setTheme(t);

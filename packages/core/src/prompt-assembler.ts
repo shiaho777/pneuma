@@ -46,6 +46,23 @@ export interface AssembleInput {
   history: LLMMessage[];
   relationship?: string;
   scene: SceneContext;
+  spec?: { context: number; output: number };
+}
+
+function fitHistory(
+  history: LLMMessage[],
+  budgetTokens: number,
+): LLMMessage[] {
+  if (budgetTokens <= 0) return history;
+  const kept: LLMMessage[] = [];
+  let used = 0;
+  for (let i = history.length - 1; i >= 0; i--) {
+    const cost = estimateTokens(history[i].content);
+    if (used + cost > budgetTokens && kept.length > 0) break;
+    kept.unshift(history[i]);
+    used += cost;
+  }
+  return kept;
 }
 
 export function assemblePrompt(input: AssembleInput): AssembledPrompt {
@@ -83,9 +100,16 @@ export function assemblePrompt(input: AssembleInput): AssembledPrompt {
     .map((l) => `## ${l.id}\n${l.content}`)
     .join("\n\n");
 
+  let history = input.history;
+  if (input.spec?.context) {
+    const systemTokens = estimateTokens(system);
+    const reserve = input.spec.output || 0;
+    history = fitHistory(history, input.spec.context - reserve - systemTokens);
+  }
+
   const messages: LLMMessage[] = [
     { role: "system", content: system },
-    ...input.history,
+    ...history,
   ];
 
   return {

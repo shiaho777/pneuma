@@ -644,6 +644,14 @@ The licenses of externally maintained libraries from which parts of the Software
 
 （许可证文本见上游仓库）
 
+## @tauri-apps/@tauri-apps/cli 2.12.5 — Apache-2.0 OR MIT
+
+（许可证文本见上游仓库）
+
+## @tauri-apps/@tauri-apps/cli-darwin-arm64 2.12.5 — Apache-2.0 OR MIT
+
+（许可证文本见上游仓库）
+
 ## @types/@types/babel__core 7.20.5 — MIT
 
     MIT License
