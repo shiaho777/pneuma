@@ -7,6 +7,7 @@ import {
   type UpdateState,
 } from "@pneuma/core";
 import { ProvidersTab } from "./ProvidersTab";
+import { IconDownload, IconUpload, IconWind } from "./icons";
 import licenseText from "../../../LICENSE?raw";
 import thirdParty from "../../../apps/web/src/assets/THIRD-PARTY-LICENSES.txt?raw";
 import readmeUrl from "../../../README.md";
@@ -124,7 +125,9 @@ export function SettingsCenter(props: SettingsCenterProps) {
         {tab === "关于" && (
           <section className="settings-section">
             <div className="identity">
-              <div className="avatar">p</div>
+              <div className="avatar">
+                <IconWind size={20} />
+              </div>
               <div>
                 <div className="name">Pneuma</div>
                 <button
@@ -271,10 +274,10 @@ export function SettingsCenter(props: SettingsCenterProps) {
             </p>
             <div className="row">
               <button className="ghost tiny" onClick={exportBackup}>
-                导出整库备份
+                <IconDownload size={13} /> 导出整库备份
               </button>
               <label className="ghost tiny file-label">
-                导入备份
+                <IconUpload size={13} /> 导入备份
                 <input
                   type="file"
                   accept=".json"

@@ -31,6 +31,21 @@ import {
 import { Onboarding } from "./Onboarding";
 import { SettingsCenter, type Theme } from "./SettingsCenter";
 import { ChangelogModal } from "./ChangelogModal";
+import { Toasts, toast } from "./Toast";
+import {
+  IconChat,
+  IconUsers,
+  IconGear,
+  IconPlus,
+  IconUpload,
+  IconDownload,
+  IconSend,
+  IconStop,
+  IconSliders,
+  IconHeart,
+  IconSpark,
+  IconWind,
+} from "./icons";
 
 const DEMO_AGENT: AgentDefinition = {
   id: "demo",
@@ -79,7 +94,6 @@ export function App({ storage }: { storage?: PneumaStorage }) {
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [input, setInput] = useState("");
   const [running, setRunning] = useState(false);
-  const [notice, setNotice] = useState("");
   const [presetModal, setPresetModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [theme, setTheme] = useState<Theme>("light");
@@ -167,7 +181,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           break;
         case "run.failed":
           setPending("");
-          setNotice("连接出了点问题：" + e.error);
+          toast("连接出了点问题：" + e.error, true);
           break;
         default:
           break;
@@ -335,7 +349,6 @@ export function App({ storage }: { storage?: PneumaStorage }) {
     const text = input.trim();
     if (!text || running) return;
     setInput("");
-    setNotice("");
     setSilence("");
     setRunning(true);
     if (isGroup) {
@@ -411,9 +424,9 @@ export function App({ storage }: { storage?: PneumaStorage }) {
         setMessages((m) => [...m, greeting]);
         void storage?.saveMessage(greeting);
       }
-      setNotice(`已导入「${card.agent.name}」`);
+      toast(`已导入「${card.agent.name}」`);
     } catch (err) {
-      setNotice("导入失败：" + String(err));
+      toast("导入失败：" + String(err), true);
     }
   };
 
@@ -474,7 +487,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
     void storage?.saveMessage(greeting);
     setPresetModal(false);
     setView("chat");
-    setNotice(`已按「${preset.label}」预设创建`);
+    toast(`已按「${preset.label}」预设创建`);
   };
 
   const onPackImport = async (file: File) => {
@@ -514,9 +527,9 @@ export function App({ storage }: { storage?: PneumaStorage }) {
         setMessages((m) => [...m, greeting]);
         void storage?.saveMessage(greeting);
       }
-      setNotice(`已导入人格包「${a.name}」`);
+      toast(`已导入人格包「${a.name}」`);
     } catch (err) {
-      setNotice("人格包导入失败：" + String(err));
+      toast("人格包导入失败：" + String(err), true);
     }
   };
 
@@ -535,7 +548,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
     link.download = `${agent.name}.pneuma.json`;
     link.click();
     URL.revokeObjectURL(url);
-    setNotice(`已导出「${agent.name}」人格包`);
+    toast(`已导出「${agent.name}」人格包`);
   };
 
   const updateAgent = (patch: Partial<AgentDefinition>) => {
@@ -572,19 +585,24 @@ export function App({ storage }: { storage?: PneumaStorage }) {
   return (
     <div className="shell">
       <aside className="sessions">
-        <div className="brand">Pneuma</div>
+        <div className="brand">
+          <span className="brand-mark">
+            <IconWind size={17} />
+          </span>
+          <span className="brand-name">Pneuma</span>
+        </div>
         <div className="nav">
           <button
             className={view === "chat" ? "send" : "ghost"}
             onClick={() => setView("chat")}
           >
-            会话
+            <IconChat size={14} /> 会话
           </button>
           <button
             className={view === "plaza" ? "send" : "ghost"}
             onClick={() => setView("plaza")}
           >
-            广场
+            <IconUsers size={14} /> 广场
           </button>
         </div>
         {view === "chat" &&
@@ -608,13 +626,13 @@ export function App({ storage }: { storage?: PneumaStorage }) {
             </div>
           ))}
         <button className="send" onClick={() => setPresetModal(true)}>
-          按预设创建
+          <IconSpark size={15} /> 按预设创建
         </button>
         <button className="ghost" onClick={() => setGroupModal(true)}>
-          新建群聊
+          <IconPlus size={15} /> 新建群聊
         </button>
         <button className="ghost" onClick={() => packFileRef.current?.click()}>
-          导入人格包
+          <IconUpload size={15} /> 导入人格包
         </button>
         <input
           ref={packFileRef}
@@ -628,7 +646,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           }}
         />
         <button className="ghost" onClick={() => fileRef.current?.click()}>
-          导入角色卡
+          <IconUpload size={15} /> 导入角色卡
         </button>
         <input
           ref={fileRef}
@@ -642,9 +660,9 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           }}
         />
         <button className="ghost" onClick={() => setSettings(true)}>
-          设置
+          <IconGear size={15} /> 设置
         </button>
-        <div className="hint">M4 · 数据保存在本机</div>
+        <div className="hint">v{__APP_VERSION__} · 数据保存在本机</div>
       </aside>
 
       {view === "chat" ? (
@@ -659,7 +677,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
             <div className="head-actions">
               <span className="tokens">ctx {totalTokens} tok</span>
               <button className="ghost" onClick={() => setDrawer((d) => !d)}>
-                导演模式
+                <IconSliders size={14} /> 导演模式
               </button>
             </div>
           </header>
@@ -676,7 +694,6 @@ export function App({ storage }: { storage?: PneumaStorage }) {
             ))}
             {pending && <div className="bubble assistant pending">{pending}</div>}
             {silence && <div className="notice">本轮沉默：{silence}</div>}
-            {notice && <div className="notice">{notice}</div>}
             <div ref={bottomRef} />
           </div>
 
@@ -696,11 +713,11 @@ export function App({ storage }: { storage?: PneumaStorage }) {
                 className="ghost"
                 onClick={() => runtimeRef.current!.abort(session.id)}
               >
-                停止
+                <IconStop size={14} /> 停止
               </button>
             ) : (
               <button className="send" onClick={send}>
-                发送
+                <IconSend size={14} /> 发送
               </button>
             )}
           </footer>
@@ -713,7 +730,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
               <span className="statusline">角色们的朋友圈</span>
             </div>
             <button className="send" disabled={running} onClick={letWorldPost}>
-              让世界发动态
+              <IconSpark size={14} /> 让世界发动态
             </button>
           </header>
           <div className="messages">
@@ -732,7 +749,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
                     className="ghost tiny"
                     onClick={() => void plazaRef.current!.like(m.id, "user")}
                   >
-                    {m.likes.includes("user") ? "已赞" : "赞"} {m.likes.length || ""}
+                    <IconHeart size={13} /> {m.likes.includes("user") ? "已赞" : "赞"} {m.likes.length || ""}
                   </button>
                 </div>
                 {m.comments.map((c) => (
@@ -826,7 +843,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           ))}
 
           <button className="ghost" onClick={exportPack}>
-            导出人格包
+            <IconDownload size={14} /> 导出人格包
           </button>
 
           <h3>记忆库</h3>
@@ -926,7 +943,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           }}
           onImported={() => undefined}
           onClose={() => setSettings(false)}
-          notify={setNotice}
+          notify={(t) => toast(t)}
         />
       )}
 
@@ -952,6 +969,7 @@ export function App({ storage }: { storage?: PneumaStorage }) {
           }}
         />
       )}
+      <Toasts />
     </div>
   );
 }

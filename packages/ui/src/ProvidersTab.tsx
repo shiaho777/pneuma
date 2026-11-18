@@ -31,6 +31,7 @@ import iconVolc from "./assets/provider-icons/model-provider-volcengine.png";
 import iconGoogle from "./assets/provider-icons/brand-google.svg";
 import iconAzure from "./assets/provider-icons/brand-azure.svg";
 import iconBedrock from "./assets/provider-icons/brand-bedrock.svg";
+import { IconEye, IconEyeOff, IconBack, IconTrash } from "./icons";
 
 const PROTOCOL_LABEL: Record<LLMProtocol, string> = {
   "openai-compatible": "Chat Completions (/chat/completions)",
@@ -376,12 +377,12 @@ export function ProvidersTab({
       <section className="settings-section">
         <div className="row">
           <button className="ghost tiny" onClick={backToList}>
-            ← 供应商列表
+            <IconBack size={13} /> 供应商列表
           </button>
           {dirty && <span className="badge warn">未保存</span>}
           <span className="spacer" />
           <button className="ghost tiny" onClick={removeProvider}>
-            删除供应商
+            <IconTrash size={13} /> 删除供应商
           </button>
         </div>
         <label className="field">
@@ -423,8 +424,12 @@ export function ProvidersTab({
               value={draft.apiKey}
               onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })}
             />
-            <button className="ghost tiny" onClick={() => setShowKey((v) => !v)}>
-              {showKey ? "隐藏" : "显示"}
+            <button
+              className="ghost tiny"
+              title={showKey ? "隐藏" : "显示"}
+              onClick={() => setShowKey((v) => !v)}
+            >
+              {showKey ? <IconEyeOff size={14} /> : <IconEye size={14} />}
             </button>
           </span>
         </label>

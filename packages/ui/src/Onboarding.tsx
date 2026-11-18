@@ -1,9 +1,10 @@
 import { useState } from "react";
+import { IconWind } from "./icons";
 
 const SLIDES = [
   {
     title: "Pneuma · 感情优先的 AI 角色世界",
-    body: "角色不是住在假手机里的人，而是有记忆、会主动、表达自然的 agent。酒馆的深度，消费级的体验。",
+    body: "角色不是住在假手机里的人，而是有记忆、会主动、表达自然的 agent。\n酒馆的深度，消费级的体验。",
   },
   {
     title: "三件事，零配置",
@@ -11,7 +12,7 @@ const SLIDES = [
   },
   {
     title: "初次使用，希望你玩得开心",
-    body: "数据全在本机，零遥测、零强制登录。极客深度都收在「导演模式」抽屉里，普通人永远不用碰。",
+    body: "数据全在本机，零遥测、零强制登录。\n极客深度都收在「导演模式」抽屉里，普通人永远不用碰。",
   },
 ];
 
@@ -29,6 +30,9 @@ export function Onboarding({
   return (
     <div className="modal">
       <div className="panel onboarding">
+        <div className="onboarding-hero">
+          <IconWind size={28} />
+        </div>
         <h3>{slide.title}</h3>
         <p className="onboarding-body">{slide.body}</p>
         {i === SLIDES.length - 1 && (
@@ -44,6 +48,11 @@ export function Onboarding({
             {author ? `作者：${author}` : "作者槽位：待维护者配置"}
           </div>
         )}
+        <div className="onboarding-dots">
+          {SLIDES.map((_, k) => (
+            <i key={k} className={k === i ? "on" : ""} />
+          ))}
+        </div>
         <div className="onboarding-actions">
           <button className="ghost" onClick={onDone}>
             跳过
@@ -57,9 +66,6 @@ export function Onboarding({
               开始
             </button>
           )}
-        </div>
-        <div className="meta">
-          {i + 1} / {SLIDES.length}
         </div>
       </div>
     </div>

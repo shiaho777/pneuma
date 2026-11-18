@@ -12,7 +12,7 @@ export function ChangelogModal({
   return (
     <div className="modal" onClick={onClose}>
       <div className="panel" onClick={(e) => e.stopPropagation()}>
-        <h3>更新到 v{version}</h3>
+        <h3>更新到 {version.replace(/^v/, "v")}</h3>
         <pre className="license">{notes || "（无更新说明）"}</pre>
         {url && (
           <a href={url} target="_blank" rel="noreferrer">
