@@ -365,14 +365,18 @@ export class MockProvider implements LLMProvider {
         args: { text: q.replace(/^.*记住[：:]?/, ""), importance: 0.8 },
       };
     }
-    const sentences = [
-      `嗯，我在听。`,
-      `你说的「${q.slice(0, 24)}」，我记下了。`,
-      `今天过得怎么样？`,
-    ];
-    for (const s of sentences) {
-      yield { type: "text", text: s + "\n" };
-    }
+    yield {
+      type: "tool",
+      name: "send_messages",
+      args: {
+        messages: [
+          { text: "嗯，我在听。" },
+          { text: `你说的「${q.slice(0, 20)}」，我记下了。` },
+          { text: "오늘도 네가 제일 좋아 ㅋㅋ", translation: "今天也最喜欢你啦 哈哈" },
+        ],
+      },
+    };
+    yield { type: "tool", name: "send_sticker", args: { id: "fragile", label: "我好脆弱啊" } };
   }
 }
 

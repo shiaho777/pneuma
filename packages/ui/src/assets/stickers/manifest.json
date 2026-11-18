@@ -1,0 +1,41 @@
+{
+  "source": "Pneuma 自绘内置表情包",
+  "stickers": [
+    {
+      "id": "fragile",
+      "label": "我好脆弱啊",
+      "caption": "我好脆弱啊，我真的特别想哭",
+      "file": "fragile.svg"
+    },
+    {
+      "id": "wronged",
+      "label": "委屈",
+      "caption": "我只是一头呆萌的小猪呀",
+      "file": "wronged.svg"
+    },
+    {
+      "id": "happy",
+      "label": "开心",
+      "caption": "今天也最喜欢你啦",
+      "file": "happy.svg"
+    },
+    {
+      "id": "sleepy",
+      "label": "困了",
+      "caption": "困得眼睛都睁不开了",
+      "file": "sleepy.svg"
+    },
+    {
+      "id": "angry",
+      "label": "生气",
+      "caption": "你这只坏猪真的要把我气死",
+      "file": "angry.svg"
+    },
+    {
+      "id": "shy",
+      "label": "害羞",
+      "caption": "别看我啦，会脸红的",
+      "file": "shy.svg"
+    }
+  ]
+}

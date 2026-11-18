@@ -310,6 +310,19 @@ export class AgentRuntime {
           agentId: agent.id,
           text,
         });
+        this.deps.emit({
+          type: "message.completed",
+          sessionId: session.id,
+          message: {
+            id: uid(),
+            sessionId: session.id,
+            role: "assistant",
+            agentId: agent.id,
+            content: text,
+            createdAt: Date.now(),
+            kind: "status",
+          },
+        });
         break;
       }
       case "remember": {
@@ -382,12 +395,20 @@ export class AgentRuntime {
           ? (call.args.messages as unknown[])
           : [];
         for (const m of list) {
+          const obj =
+            m && typeof m === "object" ? (m as Record<string, unknown>) : null;
+          const text = obj ? String(obj.text ?? "") : String(m);
+          if (!text) continue;
+          const translation = obj?.translation
+            ? String(obj.translation)
+            : undefined;
           const message: ChatMessage = {
             id: uid(),
             sessionId: session.id,
             role: "assistant",
             agentId: agent.id,
-            content: String(m),
+            content: text,
+            translation,
             createdAt: Date.now(),
           };
           this.deps.emit({
@@ -399,14 +420,16 @@ export class AgentRuntime {
         break;
       }
       case "send_sticker": {
+        const stickerId = String(call.args.id ?? "fragile");
         const message: ChatMessage = {
           id: uid(),
           sessionId: session.id,
           role: "assistant",
           agentId: agent.id,
-          content: String(call.args.label ?? call.args.id ?? "表情包"),
+          content: String(call.args.label ?? stickerId),
           createdAt: Date.now(),
           kind: "sticker",
+          imageUrl: `sticker:${stickerId}`,
         };
         this.deps.emit({
           type: "message.completed",

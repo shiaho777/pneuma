@@ -121,7 +121,12 @@ export interface Session {
   createdAt: number;
 }
 
-export type ChatMessageKind = "text" | "sticker" | "status" | "voice" | "photo";
+export type ChatMessageKind =
+  | "text"
+  | "sticker"
+  | "status"
+  | "voice"
+  | "photo";
 
 export interface ChatMessage {
   id: string;
@@ -131,6 +136,10 @@ export interface ChatMessage {
   content: string;
   createdAt: number;
   kind?: ChatMessageKind;
+  /** 双语对照：主文本之外的译文，渲染为气泡下方灰色小字块 */
+  translation?: string;
+  /** 表情包图片地址（内置资产或用户自配） */
+  imageUrl?: string;
   meta?: Record<string, unknown>;
 }
 

@@ -136,8 +136,8 @@ test("端到端：提取器按增量游标触发，低置信进待审", async ()
     emit: (e) => events.push(e),
   });
   const agent = makeAgent();
-  // 每轮 user+assistant 至少 2 条，10 轮后超过 20 条阈值
-  for (let i = 0; i < 10; i++) {
+  // 演示模型经工具输出，history 每轮只记 user 一条，故需 >20 轮才达阈值
+  for (let i = 0; i < 24; i++) {
     await runtime.send(session, agent, `第${i}句闲话`);
   }
   const pending = events.filter((e) => e.type === "memory.pending");

@@ -3,16 +3,30 @@ import type { ToolSpec } from "@pneuma/protocol";
 export const BUILTIN_TOOLS: ToolSpec[] = [
   {
     name: "send_messages",
-    description: "把回复拆成多条短消息连发，像活人打字",
+    description:
+      "把回复拆成多条短消息连发，像活人打字。若角色说外语，可给每条附中文译文（双语对照）",
     parameters: {
       type: "object",
-      properties: { messages: { type: "array", items: { type: "string" } } },
+      properties: {
+        messages: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              text: { type: "string" },
+              translation: { type: "string", description: "中文译文，可选" },
+            },
+            required: ["text"],
+          },
+        },
+      },
     },
     group: "expression",
   },
   {
     name: "send_sticker",
-    description: "发一个表情包",
+    description:
+      "发一个表情包图片。可选内置 id：fragile(脆弱)/wronged(委屈)/happy(开心)/sleepy(困)/angry(生气)/shy(害羞)",
     parameters: {
       type: "object",
       properties: { id: { type: "string" }, label: { type: "string" } },

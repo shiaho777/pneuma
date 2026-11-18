@@ -37,6 +37,7 @@ import { Onboarding } from "./Onboarding";
 import { SettingsCenter, type Theme } from "./SettingsCenter";
 import { ChangelogModal } from "./ChangelogModal";
 import { Toasts, toast } from "./Toast";
+import { StickerImage } from "./StickerImage";
 import {
   IconChat,
   IconUsers,
@@ -736,10 +737,10 @@ export function App({ storage }: { storage?: PneumaStorage }) {
       {view === "chat" ? (
         <main className="chat">
           <header className="chat-head">
-            <div>
+            <div className="head-title">
               <span className="name">{session.title}</span>
-              <span className="statusline">
-                {isGroup ? "群聊 · 调度器决定谁发言" : statusMap[agent.id] ?? ""}
+              <span className="read-receipt">
+                {running ? "对方正在输入…" : messages.length ? "已读" : ""}
               </span>
             </div>
             <div className="head-actions">
@@ -750,22 +751,60 @@ export function App({ storage }: { storage?: PneumaStorage }) {
             </div>
           </header>
 
-          <div className="messages">
-            {messages.map((m) => (
-              <div key={m.id} className={`bubble ${m.role} ${m.kind ?? ""}`}>
-                {isGroup && m.role === "assistant" && (
-                  <div className="speaker">{nameOf(m.agentId)}</div>
-                )}
-                {m.kind === "sticker" ? "🐷 " : ""}
-                {m.content}
+          <div className="messages wallpaper">
+            {messages.map((m) => {
+              if (m.kind === "status") {
+                return (
+                  <div key={m.id} className="status-capsule">
+                    [{nameOf(m.agentId)}更新状态为：{m.content}]
+                  </div>
+                );
+              }
+              const mine = m.role === "user";
+              const speakerName = mine ? "我" : nameOf(m.agentId);
+              return (
+                <div key={m.id} className={`msg-row ${mine ? "mine" : "theirs"}`}>
+                  <div className="msg-avatar" title={speakerName}>
+                    {speakerName.slice(0, 1)}
+                  </div>
+                  <div className="msg-body">
+                    {isGroup && !mine && (
+                      <div className="speaker">{speakerName}</div>
+                    )}
+                    {m.kind === "sticker" ? (
+                      <StickerImage src={m.imageUrl} label={m.content} />
+                    ) : (
+                      <div className={`bubble ${mine ? "user" : "assistant"}`}>
+                        {m.content}
+                      </div>
+                    )}
+                    {m.translation && (
+                      <div className="translation">{m.translation}</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {pending && (
+              <div className="msg-row theirs">
+                <div className="msg-avatar">{agent.name.slice(0, 1)}</div>
+                <div className="msg-body">
+                  <div className="bubble assistant pending">{pending}</div>
+                </div>
               </div>
-            ))}
-            {pending && <div className="bubble assistant pending">{pending}</div>}
+            )}
             {silence && <div className="notice">本轮沉默：{silence}</div>}
             <div ref={bottomRef} />
           </div>
 
           <footer className="composer">
+            <button
+              className="icon-btn"
+              title="更多"
+              onClick={() => setDrawer((d) => !d)}
+            >
+              <IconPlus size={18} />
+            </button>
             <input
               value={input}
               placeholder={
@@ -778,14 +817,15 @@ export function App({ storage }: { storage?: PneumaStorage }) {
             />
             {running ? (
               <button
-                className="ghost"
+                className="icon-btn"
+                title="停止"
                 onClick={() => runtimeRef.current!.abort(session.id)}
               >
-                <IconStop size={14} /> 停止
+                <IconStop size={18} />
               </button>
             ) : (
-              <button className="send" onClick={send}>
-                <IconSend size={14} /> 发送
+              <button className="icon-btn send-icon" title="发送" onClick={send}>
+                <IconSend size={18} />
               </button>
             )}
           </footer>
