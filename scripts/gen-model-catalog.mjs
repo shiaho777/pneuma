@@ -36,6 +36,12 @@ for (const p of Object.values(raw)) {
       modalities: m.modalities ?? { input: ["text"], output: ["text"] },
       cost: m.cost ?? null,
       status: m.status ?? "active",
+      family: m.family ?? "",
+      description: m.description ?? "",
+      releaseDate: m.release_date ?? "",
+      lastUpdated: m.last_updated ?? "",
+      structuredOutput: Boolean(m.structured_output),
+      openWeights: Boolean(m.open_weights),
     });
   }
   if (!models.length) continue;

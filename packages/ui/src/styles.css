@@ -597,6 +597,12 @@ button:disabled {
   flex: 1;
 }
 
+.model-row-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .badge {
   font-size: 11px;
   border: 1px solid var(--line);

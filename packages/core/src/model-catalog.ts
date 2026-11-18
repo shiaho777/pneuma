@@ -50,6 +50,44 @@ export function listProviders(): CatalogProvider[] {
   return catalog?.providers ?? [];
 }
 
+export const POPULAR_PROVIDER_IDS = [
+  "openai",
+  "anthropic",
+  "google",
+  "azure",
+  "amazon-bedrock",
+  "deepseek",
+  "siliconflow",
+  "zhipuai",
+  "moonshotai",
+  "minimax",
+  "xiaomi",
+  "alibaba",
+  "volcengine",
+  "openrouter",
+  "groq",
+  "mistral",
+  "xai",
+  "togetherai",
+  "cerebras",
+  "perplexity",
+  "cohere",
+  "huggingface",
+];
+
+export function listPopularProviders(): CatalogProvider[] {
+  if (!catalog) return [];
+  const byId = new Map(catalog.providers.map((p) => [p.id, p]));
+  const popular = POPULAR_PROVIDER_IDS.map((id) => byId.get(id)).filter(
+    (p): p is CatalogProvider => Boolean(p),
+  );
+  return popular.length ? popular : catalog.providers.slice(0, 24);
+}
+
+export function providerModels(providerId: string): ModelSpec[] {
+  return findProvider(providerId)?.models ?? [];
+}
+
 export function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${Math.round(n / 1_000_000)}M`;
   if (n >= 1_000) return `${Math.round(n / 1_000)}K`;

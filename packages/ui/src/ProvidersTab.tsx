@@ -3,14 +3,19 @@ import type {
   AIConfig,
   CatalogProvider,
   LLMProtocol,
+  ModelSpec,
   ProviderConfig,
 } from "@pneuma/protocol";
 import {
+  fetchRemoteModels,
   findModelMatches,
   findProvider,
   formatTokens,
+  listPopularProviders,
   listProviders,
+  providerModels,
   type CatalogMatch,
+  type RemoteModel,
 } from "@pneuma/core";
 
 import iconOpenai from "./assets/provider-icons/model-provider-openai.png";
@@ -50,8 +55,8 @@ const PRESET_PROVIDERS: PresetProvider[] = [
   { catalogId: "amazon-bedrock", name: "Amazon Bedrock", protocol: "openai-compatible", baseUrl: "", icon: iconBedrock, initial: "B" },
   { catalogId: "deepseek", name: "DeepSeek", protocol: "openai-compatible", baseUrl: "https://api.deepseek.com", icon: iconDeepseek, initial: "D" },
   { catalogId: "siliconflow", name: "硅基流动", protocol: "openai-compatible", baseUrl: "https://api.siliconflow.cn/v1", icon: iconSiliconflow, initial: "硅" },
-  { catalogId: "zhipu", name: "智谱", protocol: "openai-compatible", baseUrl: "https://open.bigmodel.cn/api/paas/v4", icon: iconBigmodel, initial: "智" },
-  { catalogId: "moonshot", name: "Moonshot", protocol: "openai-compatible", baseUrl: "https://api.moonshot.cn/v1", icon: iconKimi, initial: "M" },
+  { catalogId: "zhipuai", name: "智谱", protocol: "openai-compatible", baseUrl: "https://open.bigmodel.cn/api/paas/v4", icon: iconBigmodel, initial: "智" },
+  { catalogId: "moonshotai", name: "Moonshot", protocol: "openai-compatible", baseUrl: "https://api.moonshot.cn/v1", icon: iconKimi, initial: "M" },
   { catalogId: "minimax", name: "MiniMax", protocol: "openai-compatible", baseUrl: "https://api.minimaxi.com/v1", icon: iconMinimax, initial: "M" },
   { catalogId: "xiaomi", name: "小米 MiMo", protocol: "openai-compatible", baseUrl: "", icon: iconMimo, initial: "Mi" },
   { catalogId: "alibaba", name: "阿里云百炼", protocol: "openai-compatible", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", icon: iconAlibaba, initial: "百" },
@@ -100,6 +105,15 @@ export function ProvidersTab({
   const [pending, setPending] = useState<CatalogMatch | null>(null);
   const [editingModel, setEditingModel] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [showAllCatalog, setShowAllCatalog] = useState(false);
+  const [catalogLimit, setCatalogLimit] = useState(48);
+  const [browseModels, setBrowseModels] = useState(false);
+  const [modelFilter, setModelFilter] = useState("");
+  const [modelLimit, setModelLimit] = useState(50);
+  const [expandedModel, setExpandedModel] = useState<string | null>(null);
+  const [remoteModels, setRemoteModels] = useState<RemoteModel[] | null>(null);
+  const [remoteBusy, setRemoteBusy] = useState(false);
+  const [remoteError, setRemoteError] = useState("");
 
   const saved = ai.providers.find((p) => p.id === detailId) ?? null;
 
@@ -110,6 +124,12 @@ export function ProvidersTab({
     setPending(null);
     setMatches([]);
     setEditingModel(null);
+    setBrowseModels(false);
+    setModelFilter("");
+    setModelLimit(50);
+    setExpandedModel(null);
+    setRemoteModels(null);
+    setRemoteError("");
   }, [detailId]);
 
   const dirty =
@@ -117,12 +137,14 @@ export function ProvidersTab({
 
   const catalogGrid = useMemo(() => {
     const q = filter.trim().toLowerCase();
-    const all = listProviders();
-    if (!q) return all.slice(0, 24);
-    return all
-      .filter((p) => p.id.includes(q) || p.name.toLowerCase().includes(q))
-      .slice(0, 24);
-  }, [filter]);
+    if (q) {
+      return listProviders()
+        .filter((p) => p.id.includes(q) || p.name.toLowerCase().includes(q))
+        .slice(0, catalogLimit);
+    }
+    if (showAllCatalog) return listProviders().slice(0, catalogLimit);
+    return listPopularProviders();
+  }, [filter, showAllCatalog, catalogLimit]);
 
   const openDetail = (id: string) => {
     if (dirty && !window.confirm("当前供应商有未保存的修改，放弃并切换？")) return;
@@ -285,7 +307,71 @@ export function ProvidersTab({
     setMatches([]);
   };
 
+  const addCatalogModel = (model: ModelSpec) => {
+    if (!draft) return;
+    const models = draft.models.some((m) => m.id === model.id)
+      ? draft.models.map((m) =>
+          m.id === model.id ? { ...m, spec: model, enabled: true } : m,
+        )
+      : [...draft.models, { id: model.id, enabled: true, spec: model }];
+    setDraft({ ...draft, models });
+    notify(`已添加「${model.id}」（上下文 ${formatTokens(model.context)}）`);
+  };
+
+  const pullRemote = async () => {
+    if (!draft) return;
+    setRemoteBusy(true);
+    setRemoteError("");
+    try {
+      const list = await fetchRemoteModels(
+        draft.baseUrl,
+        draft.apiKey,
+        draft.protocol,
+      );
+      setRemoteModels(list);
+      notify(`拉取到 ${list.length} 个在线模型`);
+    } catch (e) {
+      setRemoteError(String(e));
+    }
+    setRemoteBusy(false);
+  };
+
+  const addRemoteModel = (rm: RemoteModel) => {
+    if (!draft) return;
+    const spec: ModelSpec | undefined = rm.context
+      ? {
+          id: rm.id,
+          name: rm.name ?? rm.id,
+          context: rm.context,
+          input: rm.context,
+          output: rm.output ?? 0,
+          toolCall: true,
+          reasoning: false,
+          attachment: false,
+          temperature: true,
+          modalities: { input: ["text"], output: ["text"] },
+          cost: null,
+          status: "active",
+        }
+      : undefined;
+    const models = draft.models.some((m) => m.id === rm.id)
+      ? draft.models
+      : [...draft.models, { id: rm.id, enabled: true, spec }];
+    setDraft({ ...draft, models });
+    notify(`已添加在线模型「${rm.id}」`);
+  };
+
   if (draft) {
+    const catalogProvider = draft.catalogProviderId
+      ? findProvider(draft.catalogProviderId)
+      : undefined;
+    const browseList = (
+      catalogProvider ? providerModels(catalogProvider.id) : []
+    ).filter((m) =>
+      modelFilter.trim()
+        ? m.id.toLowerCase().includes(modelFilter.trim().toLowerCase())
+        : true,
+    );
     return (
       <section className="settings-section">
         <div className="row">
@@ -365,7 +451,129 @@ export function ProvidersTab({
           <button className="send tiny" onClick={() => setAdding(true)}>
             ＋ 添加模型
           </button>
+          {catalogProvider && (
+            <button
+              className="ghost tiny"
+              onClick={() => setBrowseModels((v) => !v)}
+            >
+              目录模型（{catalogProvider.models.length}）
+            </button>
+          )}
+          <button className="ghost tiny" disabled={remoteBusy} onClick={pullRemote}>
+            {remoteBusy ? "拉取中…" : "拉取在线模型"}
+          </button>
         </div>
+        {remoteError && <div className="badge warn">{remoteError}</div>}
+        {remoteModels && (
+          <div className="align-panel">
+            <div className="name">在线模型（{remoteModels.length}）· 点击添加</div>
+            {remoteModels.slice(0, 100).map((rm) => (
+              <div key={rm.id} className="model-row">
+                <span className="name">{rm.id}</span>
+                {rm.context ? (
+                  <span className="badge">{formatTokens(rm.context)}</span>
+                ) : null}
+                <span className="spacer" />
+                <button className="ghost tiny" onClick={() => addRemoteModel(rm)}>
+                  添加
+                </button>
+              </div>
+            ))}
+            {remoteModels.length > 100 && (
+              <div className="meta">仅显示前 100 个，可用「＋ 添加模型」输入 ID 精确添加。</div>
+            )}
+          </div>
+        )}
+        {browseModels && catalogProvider && (
+          <div className="align-panel">
+            <div className="row">
+              <span className="name">
+                {catalogProvider.name} 目录模型（{browseList.length}）
+              </span>
+              <input
+                className="provider-name"
+                value={modelFilter}
+                placeholder="过滤模型 ID"
+                onChange={(e) => {
+                  setModelFilter(e.target.value);
+                  setModelLimit(50);
+                }}
+              />
+            </div>
+            {browseList.slice(0, modelLimit).map((m) => (
+              <div key={m.id} className="model-row-wrap">
+                <div className="model-row">
+                  <button
+                    className="ghost tiny"
+                    onClick={() =>
+                      setExpandedModel(expandedModel === m.id ? null : m.id)
+                    }
+                  >
+                    {expandedModel === m.id ? "收起" : "详情"}
+                  </button>
+                  <span className="name">{m.id}</span>
+                  <span className="badge">{formatTokens(m.context)}</span>
+                  {m.reasoning && <span className="badge">推理</span>}
+                  {m.toolCall && <span className="badge">工具</span>}
+                  {m.status === "deprecated" && (
+                    <span className="badge warn">弃用</span>
+                  )}
+                  <span className="spacer" />
+                  <button
+                    className="send tiny"
+                    onClick={() => addCatalogModel(m)}
+                  >
+                    添加
+                  </button>
+                </div>
+                {expandedModel === m.id && (
+                  <div className="spec-card">
+                    <div className="spec-grid">
+                      <span>名称 {m.name}</span>
+                      <span>家族 {m.family || "—"}</span>
+                      <span>上下文 {formatTokens(m.context)}</span>
+                      <span>最大输入 {formatTokens(m.input)}</span>
+                      <span>最大输出 {formatTokens(m.output)}</span>
+                      <span>工具 {m.toolCall ? "支持" : "不支持"}</span>
+                      <span>推理 {m.reasoning ? "是" : "否"}</span>
+                      <span>视觉 {m.attachment ? "是" : "否"}</span>
+                      <span>温度 {m.temperature ? "支持" : "不支持"}</span>
+                      <span>结构化输出 {m.structuredOutput ? "是" : "否"}</span>
+                      <span>开放权重 {m.openWeights ? "是" : "否"}</span>
+                      <span>状态 {m.status}</span>
+                      <span>
+                        模态 {m.modalities.input.join("/")} →{" "}
+                        {m.modalities.output.join("/")}
+                      </span>
+                      <span>发布 {m.releaseDate || "—"}</span>
+                      <span>更新 {m.lastUpdated || "—"}</span>
+                      {m.cost && (
+                        <span>
+                          成本 ${m.cost.input ?? "?"}/${m.cost.output ?? "?"}
+                          {m.cost.cache_read != null
+                            ? `（缓存读 $${m.cost.cache_read}）`
+                            : ""}{" "}
+                          每百万 token
+                        </span>
+                      )}
+                    </div>
+                    {m.description && (
+                      <div className="meta">{m.description}</div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+            {browseList.length > modelLimit && (
+              <button
+                className="ghost tiny"
+                onClick={() => setModelLimit((n) => n + 100)}
+              >
+                加载更多（剩余 {browseList.length - modelLimit}）
+              </button>
+            )}
+          </div>
+        )}
 
         {adding && (
           <div className="align-panel">
@@ -669,9 +877,26 @@ export function ProvidersTab({
         <input
           value={filter}
           placeholder="搜索供应商，如 alibaba / deepseek / openrouter"
-          onChange={(e) => setFilter(e.target.value)}
+          onChange={(e) => {
+            setFilter(e.target.value);
+            setCatalogLimit(48);
+          }}
         />
       </label>
+      <div className="row">
+        <button
+          className={`ghost tiny ${!showAllCatalog && !filter ? "active-match" : ""}`}
+          onClick={() => setShowAllCatalog(false)}
+        >
+          热门
+        </button>
+        <button
+          className={`ghost tiny ${showAllCatalog ? "active-match" : ""}`}
+          onClick={() => setShowAllCatalog(true)}
+        >
+          全部（{listProviders().length}）
+        </button>
+      </div>
       <div className="catalog-grid">
         {catalogGrid.map((cp) => (
           <button
@@ -683,6 +908,15 @@ export function ProvidersTab({
           </button>
         ))}
       </div>
+      {(showAllCatalog || filter) &&
+        catalogGrid.length < listProviders().length && (
+          <button
+            className="ghost tiny"
+            onClick={() => setCatalogLimit((n) => n + 96)}
+          >
+            加载更多供应商
+          </button>
+        )}
     </section>
   );
 }

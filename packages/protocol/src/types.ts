@@ -107,6 +107,12 @@ export interface ModelSpec {
   modalities: { input: string[]; output: string[] };
   cost: { input?: number; output?: number; cache_read?: number } | null;
   status: string;
+  family?: string;
+  description?: string;
+  releaseDate?: string;
+  lastUpdated?: string;
+  structuredOutput?: boolean;
+  openWeights?: boolean;
 }
 
 export interface CatalogProvider {
