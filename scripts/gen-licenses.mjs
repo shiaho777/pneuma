@@ -55,7 +55,7 @@ const out = [
   "## 资产署名：供应商品牌图标",
   "",
   "来源：zai-org/ZCode（Apache-2.0），packages/ui/src/assets/provider-icons。",
-  "补充图标：simple-icons（CC0-1.0）Google；homarr-labs/dashboard-icons（Apache-2.0）Azure / AWS。",
+  "补充图标：Google 官方四色 G 标志（Wikimedia Commons，公有领域）；homarr-labs/dashboard-icons（Apache-2.0）Azure / AWS。",
   "本项目仅引用开源品牌图标资产，未引用其代码。详见 packages/ui/src/assets/provider-icons/SOURCE.txt。",
 ].join("\n");
 

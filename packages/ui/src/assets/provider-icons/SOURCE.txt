@@ -6,7 +6,10 @@ Provider brand icons sources
    Only open-source brand icon assets are referenced; no ZCode code is used.
 
 2) brand-google.svg
-   From simple-icons (CC0-1.0), https://cdn.simpleicons.org/google
+   Official multicolor Google "G" logo, Wikimedia Commons
+   (File:Google "G" logo.svg, public domain as a simple geometric logo).
+   Replaces an earlier monochrome simple-icons variant that did not match
+   the reference UI.
 
 3) brand-azure.svg, brand-bedrock.svg
    From homarr-labs/dashboard-icons (Apache-2.0), svg/azure.svg and svg/aws.svg.
