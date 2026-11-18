@@ -1,0 +1,14 @@
+{
+  "name": "@pneuma/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "PATH=\"../../scripts/linker-shim:$PATH\" tauri dev",
+    "build": "PATH=\"../../scripts/linker-shim:$PATH\" tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

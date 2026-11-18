@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Pneuma desktop default capability: core only, no extra native APIs","local":true,"windows":["main"],"permissions":["core:default"]}}

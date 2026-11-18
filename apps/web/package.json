@@ -1,0 +1,19 @@
+{
+  "name": "@pneuma/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@pneuma/core": "0.1.0",
+    "@pneuma/protocol": "0.1.0",
+    "@pneuma/ui": "0.1.0",
+    "dexie": "^4.0.10",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  }
+}

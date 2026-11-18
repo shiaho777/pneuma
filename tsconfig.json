@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "packages/protocol/src",
+    "packages/core/src",
+    "packages/core/test",
+    "packages/ui/src",
+    "apps/web/src",
+    "apps/web/vite.config.ts"
+  ]
+}
