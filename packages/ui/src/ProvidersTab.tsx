@@ -1,10 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type {
   AIConfig,
   CatalogProvider,
   LLMProtocol,
   ProviderConfig,
-  ProviderModel,
 } from "@pneuma/protocol";
 import {
   findModelMatches,
@@ -19,7 +18,6 @@ import iconAnthropic from "./assets/provider-icons/model-provider-anthropic.png"
 import iconDeepseek from "./assets/provider-icons/model-provider-deepseek.png";
 import iconSiliconflow from "./assets/provider-icons/model-provider-siliconflow.png";
 import iconBigmodel from "./assets/provider-icons/logo-bigmodel.svg";
-
 import iconMinimax from "./assets/provider-icons/model-provider-minimax.png";
 import iconMimo from "./assets/provider-icons/model-provider-xiaomi-mimo.png";
 import iconAlibaba from "./assets/provider-icons/model-provider-alibaba-cloud.png";
@@ -68,6 +66,15 @@ const ICON_BY_CATALOG: Record<string, string> = Object.fromEntries(
   ]),
 );
 
+function validBaseUrl(v: string): boolean {
+  try {
+    const u = new URL(v);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function ProvidersTab({
   ai,
   onChange,
@@ -78,14 +85,35 @@ export function ProvidersTab({
   notify: (text: string) => void;
 }) {
   const [detailId, setDetailId] = useState<string | null>(null);
+  const [draft, setDraft] = useState<ProviderConfig | null>(null);
+  const [formError, setFormError] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newBaseUrl, setNewBaseUrl] = useState("");
+  const [newProtocol, setNewProtocol] = useState<LLMProtocol>("openai-compatible");
+  const [newKey, setNewKey] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [filter, setFilter] = useState("");
   const [adding, setAdding] = useState(false);
   const [draftId, setDraftId] = useState("");
   const [matches, setMatches] = useState<CatalogMatch[]>([]);
   const [pending, setPending] = useState<CatalogMatch | null>(null);
+  const [editingModel, setEditingModel] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
-  const detail = ai.providers.find((p) => p.id === detailId) ?? null;
+  const saved = ai.providers.find((p) => p.id === detailId) ?? null;
+
+  useEffect(() => {
+    setDraft(saved ? { ...saved, models: saved.models.map((m) => ({ ...m })) } : null);
+    setFormError("");
+    setAdding(false);
+    setPending(null);
+    setMatches([]);
+    setEditingModel(null);
+  }, [detailId]);
+
+  const dirty =
+    draft !== null && saved !== null && JSON.stringify(draft) !== JSON.stringify(saved);
 
   const catalogGrid = useMemo(() => {
     const q = filter.trim().toLowerCase();
@@ -96,31 +124,72 @@ export function ProvidersTab({
       .slice(0, 24);
   }, [filter]);
 
-  const patchProvider = (id: string, patch: Partial<ProviderConfig>) => {
-    onChange({
-      ...ai,
-      providers: ai.providers.map((p) => (p.id === id ? { ...p, ...patch } : p)),
-    });
+  const openDetail = (id: string) => {
+    if (dirty && !window.confirm("当前供应商有未保存的修改，放弃并切换？")) return;
+    setDetailId(id);
   };
 
-  const patchModel = (
-    providerId: string,
-    modelId: string,
-    patch: Partial<ProviderModel>,
-  ) => {
-    const provider = ai.providers.find((p) => p.id === providerId);
-    if (!provider) return;
-    patchProvider(providerId, {
-      models: provider.models.map((m) =>
-        m.id === modelId ? { ...m, ...patch } : m,
-      ),
+  const backToList = () => {
+    if (dirty && !window.confirm("有未保存的修改，放弃并返回列表？")) return;
+    setDetailId(null);
+  };
+
+  const validate = (p: ProviderConfig): string => {
+    if (!p.name.trim()) return "名称不能为空";
+    if (!validBaseUrl(p.baseUrl)) return "Base URL 必填，且需为 http(s) 地址";
+    return "";
+  };
+
+  const saveDraft = () => {
+    if (!draft) return;
+    const err = validate(draft);
+    if (err) {
+      setFormError(err);
+      return;
+    }
+    onChange({
+      ...ai,
+      providers: ai.providers.map((p) => (p.id === draft.id ? draft : p)),
     });
+    setFormError("");
+    notify(`已保存「${draft.name}」`);
+  };
+
+  const cancelDraft = () => {
+    if (saved) setDraft({ ...saved, models: saved.models.map((m) => ({ ...m })) });
+    setFormError("");
+  };
+
+  const createCustom = () => {
+    const candidate: ProviderConfig = {
+      id: "custom-" + Date.now(),
+      name: newName.trim(),
+      enabled: true,
+      baseUrl: newBaseUrl.trim(),
+      protocol: newProtocol,
+      apiKey: newKey,
+      models: [],
+    };
+    const err = validate(candidate);
+    if (err) {
+      setFormError(err);
+      return;
+    }
+    onChange({ ...ai, providers: [...ai.providers, candidate] });
+    setCreating(false);
+    setNewName("");
+    setNewBaseUrl("");
+    setNewKey("");
+    setNewProtocol("openai-compatible");
+    setFormError("");
+    setDetailId(candidate.id);
+    notify(`已创建「${candidate.name}」，添加模型后即可使用`);
   };
 
   const addProviderFromCatalog = (cp: CatalogProvider) => {
     const existing = ai.providers.find((p) => p.catalogProviderId === cp.id);
     if (existing) {
-      setDetailId(existing.id);
+      openDetail(existing.id);
       return;
     }
     const provider: ProviderConfig = {
@@ -142,7 +211,7 @@ export function ProvidersTab({
       (p) => p.catalogProviderId === preset.catalogId || p.name === preset.name,
     );
     if (existing) {
-      setDetailId(existing.id);
+      openDetail(existing.id);
       return;
     }
     const cp = preset.catalogId ? findProvider(preset.catalogId) : undefined;
@@ -160,25 +229,13 @@ export function ProvidersTab({
     setDetailId(provider.id);
   };
 
-  const addCustomProvider = () => {
-    const provider: ProviderConfig = {
-      id: "custom-" + Date.now(),
-      name: "新供应商",
-      enabled: true,
-      baseUrl: "",
-      protocol: "openai-compatible",
-      apiKey: "",
-      models: [],
-    };
-    onChange({ ...ai, providers: [...ai.providers, provider] });
-    setDetailId(provider.id);
-  };
-
-  const removeProvider = (id: string) => {
+  const removeProvider = () => {
+    if (!draft) return;
+    if (!window.confirm(`删除供应商「${draft.name}」？其模型配置将一并移除。`)) return;
     onChange({
       ...ai,
-      providers: ai.providers.filter((p) => p.id !== id),
-      active: ai.active?.providerId === id ? null : ai.active,
+      providers: ai.providers.filter((p) => p.id !== draft.id),
+      active: ai.active?.providerId === draft.id ? null : ai.active,
     });
     setDetailId(null);
   };
@@ -191,27 +248,25 @@ export function ProvidersTab({
   };
 
   const confirmAlign = () => {
-    if (!detail || !pending) return;
+    if (!draft || !pending) return;
     const { provider: cp, model } = pending;
-    const models = detail.models.some((m) => m.id === model.id)
-      ? detail.models.map((m) =>
+    const models = draft.models.some((m) => m.id === model.id)
+      ? draft.models.map((m) =>
           m.id === model.id ? { ...m, spec: model, enabled: true } : m,
         )
-      : [...detail.models, { id: model.id, enabled: true, spec: model }];
+      : [...draft.models, { id: model.id, enabled: true, spec: model }];
+    const next: ProviderConfig = {
+      ...draft,
+      models,
+      baseUrl: draft.baseUrl || cp.baseUrl,
+      protocol: cp.protocol,
+      catalogProviderId: draft.catalogProviderId ?? cp.id,
+    };
+    setDraft(next);
     onChange({
       ...ai,
-      providers: ai.providers.map((p) =>
-        p.id === detail.id
-          ? {
-              ...p,
-              models,
-              baseUrl: p.baseUrl || cp.baseUrl,
-              protocol: cp.protocol,
-              catalogProviderId: p.catalogProviderId ?? cp.id,
-            }
-          : p,
-      ),
-      active: { providerId: detail.id, modelId: model.id },
+      providers: ai.providers.map((p) => (p.id === next.id ? next : p)),
+      active: { providerId: next.id, modelId: model.id },
     });
     setPending(null);
     setAdding(false);
@@ -221,59 +276,50 @@ export function ProvidersTab({
   };
 
   const addManual = () => {
-    if (!detail || !draftId.trim()) return;
+    if (!draft || !draftId.trim()) return;
     const id = draftId.trim();
-    if (detail.models.some((m) => m.id === id)) return;
-    patchProvider(detail.id, {
-      models: [...detail.models, { id, enabled: true }],
-    });
+    if (draft.models.some((m) => m.id === id)) return;
+    setDraft({ ...draft, models: [...draft.models, { id, enabled: true }] });
     setAdding(false);
     setDraftId("");
     setMatches([]);
   };
 
-  if (detail) {
+  if (draft) {
     return (
       <section className="settings-section">
         <div className="row">
-          <button className="ghost tiny" onClick={() => setDetailId(null)}>
+          <button className="ghost tiny" onClick={backToList}>
             ← 供应商列表
           </button>
-          <input
-            className="provider-name"
-            value={detail.name}
-            onChange={(e) => patchProvider(detail.id, { name: e.target.value })}
-          />
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={detail.enabled}
-              onChange={(e) =>
-                patchProvider(detail.id, { enabled: e.target.checked })
-              }
-            />
-            启用
-          </label>
-          <button className="ghost tiny" onClick={() => removeProvider(detail.id)}>
+          {dirty && <span className="badge warn">未保存</span>}
+          <span className="spacer" />
+          <button className="ghost tiny" onClick={removeProvider}>
             删除供应商
           </button>
         </div>
         <label className="field">
-          Base URL
+          名称 *
           <input
-            value={detail.baseUrl}
+            className="provider-name"
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+          />
+        </label>
+        <label className="field">
+          Base URL *
+          <input
+            value={draft.baseUrl}
             placeholder="https://api.example.com/v1"
-            onChange={(e) => patchProvider(detail.id, { baseUrl: e.target.value })}
+            onChange={(e) => setDraft({ ...draft, baseUrl: e.target.value })}
           />
         </label>
         <label className="field">
           API 格式
           <select
-            value={detail.protocol}
+            value={draft.protocol}
             onChange={(e) =>
-              patchProvider(detail.id, {
-                protocol: e.target.value as LLMProtocol,
-              })
+              setDraft({ ...draft, protocol: e.target.value as LLMProtocol })
             }
           >
             {(Object.keys(PROTOCOL_LABEL) as LLMProtocol[]).map((p) => (
@@ -288,14 +334,31 @@ export function ProvidersTab({
           <span className="key-row">
             <input
               type={showKey ? "text" : "password"}
-              value={detail.apiKey}
-              onChange={(e) => patchProvider(detail.id, { apiKey: e.target.value })}
+              value={draft.apiKey}
+              onChange={(e) => setDraft({ ...draft, apiKey: e.target.value })}
             />
             <button className="ghost tiny" onClick={() => setShowKey((v) => !v)}>
               {showKey ? "隐藏" : "显示"}
             </button>
           </span>
         </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={draft.enabled}
+            onChange={(e) => setDraft({ ...draft, enabled: e.target.checked })}
+          />
+          启用该供应商
+        </label>
+        {formError && <div className="badge warn">{formError}</div>}
+        <div className="row">
+          <button className="send tiny" onClick={saveDraft}>
+            保存
+          </button>
+          <button className="ghost tiny" disabled={!dirty} onClick={cancelDraft}>
+            取消修改
+          </button>
+        </div>
 
         <div className="row">
           <span className="name">模型列表</span>
@@ -382,44 +445,82 @@ export function ProvidersTab({
           </div>
         )}
 
-        {detail.models.map((m) => (
+        {draft.models.map((m) => (
           <div key={m.id} className="model-row">
             <button
-              className={`ghost tiny ${ai.active?.providerId === detail.id && ai.active.modelId === m.id ? "active-match" : ""}`}
+              className={`ghost tiny ${ai.active?.providerId === draft.id && ai.active.modelId === m.id ? "active-match" : ""}`}
               title="设为当前使用模型"
               onClick={() =>
                 onChange({
                   ...ai,
-                  active: { providerId: detail.id, modelId: m.id },
+                  active: { providerId: draft.id, modelId: m.id },
                 })
               }
             >
               📌
             </button>
-            <span className="name">{m.id}</span>
+            {editingModel === m.id ? (
+              <input
+                className="provider-name"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const next = editValue.trim();
+                    if (next && next !== m.id) {
+                      setDraft({
+                        ...draft,
+                        models: draft.models.map((x) =>
+                          x.id === m.id ? { ...x, id: next } : x,
+                        ),
+                      });
+                    }
+                    setEditingModel(null);
+                  }
+                  if (e.key === "Escape") setEditingModel(null);
+                }}
+              />
+            ) : (
+              <span className="name">{m.id}</span>
+            )}
             {m.spec && <span className="badge">{formatTokens(m.spec.context)}</span>}
             {m.spec && !m.spec.toolCall && <span className="badge warn">文本降级</span>}
             <span className="spacer" />
-            <button
-              className="ghost tiny"
-              onClick={() => {
-                const next = prompt("编辑模型 ID", m.id);
-                if (next && next !== m.id) {
-                  patchProvider(detail.id, {
-                    models: detail.models.map((x) =>
-                      x.id === m.id ? { ...x, id: next } : x,
-                    ),
-                  });
-                }
-              }}
-            >
-              编辑
-            </button>
+            {editingModel === m.id ? (
+              <button
+                className="ghost tiny"
+                onClick={() => {
+                  const next = editValue.trim();
+                  if (next && next !== m.id) {
+                    setDraft({
+                      ...draft,
+                      models: draft.models.map((x) =>
+                        x.id === m.id ? { ...x, id: next } : x,
+                      ),
+                    });
+                  }
+                  setEditingModel(null);
+                }}
+              >
+                确定
+              </button>
+            ) : (
+              <button
+                className="ghost tiny"
+                onClick={() => {
+                  setEditingModel(m.id);
+                  setEditValue(m.id);
+                }}
+              >
+                编辑
+              </button>
+            )}
             <button
               className="ghost tiny"
               onClick={() =>
-                patchProvider(detail.id, {
-                  models: detail.models.filter((x) => x.id !== m.id),
+                setDraft({
+                  ...draft,
+                  models: draft.models.filter((x) => x.id !== m.id),
                 })
               }
             >
@@ -430,13 +531,18 @@ export function ProvidersTab({
                 type="checkbox"
                 checked={m.enabled}
                 onChange={(e) =>
-                  patchModel(detail.id, m.id, { enabled: e.target.checked })
+                  setDraft({
+                    ...draft,
+                    models: draft.models.map((x) =>
+                      x.id === m.id ? { ...x, enabled: e.target.checked } : x,
+                    ),
+                  })
                 }
               />
             </label>
           </div>
         ))}
-        {!detail.models.length && (
+        {!draft.models.length && (
           <div className="meta">还没有模型，点「＋ 添加模型」输入 ID 自动对齐。</div>
         )}
       </section>
@@ -446,7 +552,7 @@ export function ProvidersTab({
   return (
     <section className="settings-section">
       <p className="meta">
-        密钥只保存在本机浏览器存储，请求直连你填写的接口，不经过任何项目服务器。模型规格来自 models.dev 目录快照。
+        密钥只保存在本机浏览器存储，请求直连你填写的接口，不经过任何项目服务器。模型规格来自 models.dev 目录快照。自定义供应商需填写必填项并保存后才创建。
       </p>
       <div className="row">
         <button
@@ -455,10 +561,75 @@ export function ProvidersTab({
         >
           本地演示（无需接口）
         </button>
-        <button className="send tiny" onClick={addCustomProvider}>
+        <button
+          className="send tiny"
+          onClick={() => {
+            setCreating(true);
+            setFormError("");
+          }}
+        >
           ＋ 创建自定义供应商
         </button>
       </div>
+
+      {creating && (
+        <div className="align-panel">
+          <div className="name">创建自定义供应商（* 必填，保存后才创建）</div>
+          <label className="field">
+            名称 *
+            <input
+              value={newName}
+              placeholder="如：我的中转站"
+              onChange={(e) => setNewName(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            Base URL *
+            <input
+              value={newBaseUrl}
+              placeholder="https://api.example.com/v1"
+              onChange={(e) => setNewBaseUrl(e.target.value)}
+            />
+          </label>
+          <label className="field">
+            API 格式
+            <select
+              value={newProtocol}
+              onChange={(e) => setNewProtocol(e.target.value as LLMProtocol)}
+            >
+              {(Object.keys(PROTOCOL_LABEL) as LLMProtocol[]).map((p) => (
+                <option key={p} value={p}>
+                  {PROTOCOL_LABEL[p]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="field">
+            API Key（可稍后在详情填写）
+            <input
+              type="password"
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value)}
+            />
+          </label>
+          {formError && <div className="badge warn">{formError}</div>}
+          <div className="row">
+            <button className="send tiny" onClick={createCustom}>
+              保存并创建
+            </button>
+            <button
+              className="ghost tiny"
+              onClick={() => {
+                setCreating(false);
+                setFormError("");
+              }}
+            >
+              取消
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="preset-grid">
         {PRESET_PROVIDERS.map((pp) => (
           <button
@@ -476,7 +647,7 @@ export function ProvidersTab({
         ))}
       </div>
       {ai.providers.map((p) => (
-        <button key={p.id} className="preset" onClick={() => setDetailId(p.id)}>
+        <button key={p.id} className="preset" onClick={() => openDetail(p.id)}>
           <span className="name">
             {p.catalogProviderId && ICON_BY_CATALOG[p.catalogProviderId] && (
               <img
