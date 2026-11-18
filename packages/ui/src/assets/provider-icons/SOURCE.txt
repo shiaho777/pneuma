@@ -1,1 +1,20 @@
-Provider brand icons sourced from zai-org/ZCode (Apache-2.0), packages/ui/src/assets/provider-icons.
+Provider brand icons sources
+============================
+
+1) model-provider-*.png / logo-*.svg
+   From zai-org/ZCode (Apache-2.0), packages/ui/src/assets/provider-icons.
+   Only open-source brand icon assets are referenced; no ZCode code is used.
+
+2) brand-google.svg
+   From simple-icons (CC0-1.0), https://cdn.simpleicons.org/google
+
+3) brand-azure.svg, brand-bedrock.svg
+   From homarr-labs/dashboard-icons (Apache-2.0), svg/azure.svg and svg/aws.svg.
+
+Notes
+-----
+- logo-moonshoot.svg from ZCode uses white fills (designed for dark backgrounds)
+  and is invisible on light cards; the Moonshot preset therefore uses the
+  colored Kimi icon (same company) instead.
+- Google / Azure / Amazon Bedrock have no icon in the ZCode asset set, so the
+  icons above were fetched from the open-source icon libraries listed here.

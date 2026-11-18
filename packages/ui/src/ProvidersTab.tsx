@@ -19,12 +19,15 @@ import iconAnthropic from "./assets/provider-icons/model-provider-anthropic.png"
 import iconDeepseek from "./assets/provider-icons/model-provider-deepseek.png";
 import iconSiliconflow from "./assets/provider-icons/model-provider-siliconflow.png";
 import iconBigmodel from "./assets/provider-icons/logo-bigmodel.svg";
-import iconMoonshot from "./assets/provider-icons/logo-moonshoot.svg";
+
 import iconMinimax from "./assets/provider-icons/model-provider-minimax.png";
 import iconMimo from "./assets/provider-icons/model-provider-xiaomi-mimo.png";
 import iconAlibaba from "./assets/provider-icons/model-provider-alibaba-cloud.png";
 import iconKimi from "./assets/provider-icons/model-provider-moonshot-kimi.png";
 import iconVolc from "./assets/provider-icons/model-provider-volcengine.png";
+import iconGoogle from "./assets/provider-icons/brand-google.svg";
+import iconAzure from "./assets/provider-icons/brand-azure.svg";
+import iconBedrock from "./assets/provider-icons/brand-bedrock.svg";
 
 const PROTOCOL_LABEL: Record<LLMProtocol, string> = {
   "openai-compatible": "Chat Completions (/chat/completions)",
@@ -44,13 +47,13 @@ interface PresetProvider {
 const PRESET_PROVIDERS: PresetProvider[] = [
   { catalogId: "openai", name: "OpenAI", protocol: "openai-compatible", baseUrl: "https://api.openai.com/v1", icon: iconOpenai, initial: "O" },
   { catalogId: "anthropic", name: "Anthropic", protocol: "anthropic", baseUrl: "https://api.anthropic.com", icon: iconAnthropic, initial: "A" },
-  { catalogId: "google", name: "Google", protocol: "gemini", baseUrl: "https://generativelanguage.googleapis.com", initial: "G" },
-  { catalogId: "azure", name: "Azure", protocol: "openai-compatible", baseUrl: "", initial: "Az" },
-  { catalogId: "amazon-bedrock", name: "Amazon Bedrock", protocol: "openai-compatible", baseUrl: "", initial: "B" },
+  { catalogId: "google", name: "Google", protocol: "gemini", baseUrl: "https://generativelanguage.googleapis.com", icon: iconGoogle, initial: "G" },
+  { catalogId: "azure", name: "Azure", protocol: "openai-compatible", baseUrl: "", icon: iconAzure, initial: "Az" },
+  { catalogId: "amazon-bedrock", name: "Amazon Bedrock", protocol: "openai-compatible", baseUrl: "", icon: iconBedrock, initial: "B" },
   { catalogId: "deepseek", name: "DeepSeek", protocol: "openai-compatible", baseUrl: "https://api.deepseek.com", icon: iconDeepseek, initial: "D" },
   { catalogId: "siliconflow", name: "硅基流动", protocol: "openai-compatible", baseUrl: "https://api.siliconflow.cn/v1", icon: iconSiliconflow, initial: "硅" },
   { catalogId: "zhipu", name: "智谱", protocol: "openai-compatible", baseUrl: "https://open.bigmodel.cn/api/paas/v4", icon: iconBigmodel, initial: "智" },
-  { catalogId: "moonshot", name: "Moonshot", protocol: "openai-compatible", baseUrl: "https://api.moonshot.cn/v1", icon: iconMoonshot, initial: "M" },
+  { catalogId: "moonshot", name: "Moonshot", protocol: "openai-compatible", baseUrl: "https://api.moonshot.cn/v1", icon: iconKimi, initial: "M" },
   { catalogId: "minimax", name: "MiniMax", protocol: "openai-compatible", baseUrl: "https://api.minimaxi.com/v1", icon: iconMinimax, initial: "M" },
   { catalogId: "xiaomi", name: "小米 MiMo", protocol: "openai-compatible", baseUrl: "", icon: iconMimo, initial: "Mi" },
   { catalogId: "alibaba", name: "阿里云百炼", protocol: "openai-compatible", baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1", icon: iconAlibaba, initial: "百" },
